@@ -1,0 +1,4 @@
+./models/
+./data/nba.db
+./nba-model-venv
+./chromedriver.exe
