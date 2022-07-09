@@ -7,9 +7,15 @@ from nba_api.stats.endpoints import boxscorescoringv2
 from nba_api.stats.endpoints import boxscoreplayertrackv2
 from nba_api.stats.endpoints import teamgamelogs
 from IPython.display import clear_output
+import sqlite3
+from pathlib import Path
 
 import random
 from selenium import webdriver
+from selenium.webdriver.common.by import By
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.service import Service
+
 from time import sleep
 
 ## Update basic team gamelogs and player gamelogs
@@ -158,6 +164,7 @@ def update_team_scoring_boxscores(conn, season, dates=[]):
 
 
 def update_moneylines(conn, season=2021, custom_dates=[]):
+    
     table_name = 'moneylines'
     # Get current moneyline data
 
@@ -207,17 +214,19 @@ def update_moneylines(conn, season=2021, custom_dates=[]):
     home_teams = []
     away_mls = []
     home_mls = []
+    
+    dates_with_no_data = []
 
     for date in tqdm(missing_dates, desc='progress'):
         web = 'https://www.sportsbookreview.com/betting-odds/nba-basketball/money-line/?date={}'.format(
             date)
-        path = '../chromedriver.exe'
-        driver = webdriver.Chrome(path)
+        
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
         driver.get(web)
         sleep(random.randint(1, 2))
 
         try:
-            single_row_events = driver.find_elements_by_class_name(
+            single_row_events = driver.find_elements(By.CLASS_NAME, 
                 'eventMarketGridContainer-3QipG')
 
         except:
@@ -226,7 +235,7 @@ def update_moneylines(conn, season=2021, custom_dates=[]):
             continue
 
         num_postponed_events = len(
-            driver.find_elements_by_class_name('eventStatus-3EHqw'))
+            driver.find_elements(By.CLASS_NAME, 'eventStatus-3EHqw'))
 
         num_listed_events = len(single_row_events)
         cutoff = num_listed_events - num_postponed_events
@@ -234,9 +243,9 @@ def update_moneylines(conn, season=2021, custom_dates=[]):
         for event in single_row_events[:cutoff]:
             seasons.append(season_string(season))
 
-            away_team = event.find_elements_by_class_name(
+            away_team = event.find_elements(By.CLASS_NAME, 
                 'participantBox-3ar9Y')[0].text
-            home_team = event.find_elements_by_class_name(
+            home_team = event.find_elements(By.CLASS_NAME, 
                 'participantBox-3ar9Y')[1].text
 
             away_teams.append(away_team)
@@ -244,7 +253,7 @@ def update_moneylines(conn, season=2021, custom_dates=[]):
 
             gm_dates.append(date)
 
-            mls = event.find_elements_by_class_name('pointer-2j4Dk')
+            mls = event.find_elements(By.CLASS_NAME, 'pointer-2j4Dk')
 
             away_moneyline = []
             home_moneyline = []
@@ -343,44 +352,45 @@ def update_spreads(conn, season, custom_dates=[]):
     away_spreads = []
     home_spreads = []
     
+    dates_with_no_data = []
     
     for date in tqdm(missing_dates, desc='progress'):
             web = 'https://www.sportsbookreview.com/betting-odds/nba-basketball/?date={}'.format(date)
-            path = '../chromedriver.exe'
-            driver = webdriver.Chrome(path)
+
+            driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
             driver.get(web)
             sleep(random.randint(2,3))
 
             try:
-                single_row_events = driver.find_elements_by_class_name('eventMarketGridContainer-3QipG')
+                single_row_events = driver.find_elements(By.CLASS_NAME, 'eventMarketGridContainer-3QipG')
                 
             except:
                 print("No Data for {}".format(date))
                 dates_with_no_data.append(date)
                 continue
                 
-            num_postponed_events = len(driver.find_elements_by_class_name('eventStatus-3EHqw'))
+            num_postponed_events = len(driver.find_elements(By.CLASS_NAME, 'eventStatus-3EHqw'))
 
             num_listed_events = len(single_row_events)
             cutoff = num_listed_events - num_postponed_events
 
             for event in single_row_events[:cutoff]:
 
-                away_team = event.find_elements_by_class_name('participantBox-3ar9Y')[0].text
-                home_team = event.find_elements_by_class_name('participantBox-3ar9Y')[1].text
+                away_team = event.find_elements(By.CLASS_NAME, 'participantBox-3ar9Y')[0].text
+                home_team = event.find_elements(By.CLASS_NAME, 'participantBox-3ar9Y')[1].text
                 away_teams.append(away_team)
                 home_teams.append(home_team)
                 gm_dates.append(date)
 
                 seasons.append(season_string(season))
                 
-                scoreboard = event.find_elements_by_class_name('scoreboard-1TXQV')
+                scoreboard = event.find_elements(By.CLASS_NAME, 'scoreboard-1TXQV')
 
                 home_score = []
                 away_score = []
 
                 for score in scoreboard:
-                    quarters = score.find_elements_by_class_name('scoreboardColumn-2OtpR')
+                    quarters = score.find_elements(By.CLASS_NAME, 'scoreboardColumn-2OtpR')
                     for i in range(len(quarters)):
                         scores = quarters[i].text.split('\n')
                         away_score.append(scores[0])
@@ -399,7 +409,7 @@ def update_spreads(conn, season, custom_dates=[]):
                         away_scoreboards.append('')
                         home_scoreboards.append('')
 
-                spreads = event.find_elements_by_class_name('pointer-2j4Dk')
+                spreads = event.find_elements(By.CLASS_NAME, 'pointer-2j4Dk')
                 away_lines = []
                 home_lines = []
                 for i in range(len(spreads)):    
@@ -477,3 +487,10 @@ def get_season_games(season):
     lambda x: x[:3] if '@' in x else x[-3:])
     
     return df
+
+if __name__ == "__main__":
+    db_path = Path.home() / 'NBA_Model_v1' / 'data' / 'nba.db'
+    connection = sqlite3.connect(db_path)
+    season = 2021
+    update_all_data(conn=connection, season=season)
+    connection.close()
