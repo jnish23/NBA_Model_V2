@@ -479,6 +479,7 @@ def make_matchups_2(df):
 
 
 if __name__ == '__main__':
+    
     start_season = '2013-14'
     end_season = '2021-22'
     
@@ -487,23 +488,31 @@ if __name__ == '__main__':
     db_filepath = Path.cwd().joinpath('data', 'nba.db')
 
     connection = sqlite3.connect(db_filepath)
+    
+    print("Loading raw team boxscore data from sql database...")
+    
     df = load_team_data(connection, start_season, end_season)
-    
-    df = clean_team_data(df)
-    
-    df = prep_for_aggregation(df)
-
-
+    print("Loading betting data from sql database...")
     spreads, moneylines = load_betting_data(connection)
     
+    print("Cleaning Data...")
+    
+    df = clean_team_data(df)
+    df = prep_for_aggregation(df)
+
     clean_mls = clean_moneyline_df(df = moneylines)
     clean_spreads = clean_spreads_df(df = spreads)
     
+    
+    print("Merging Boxscore and Betting Data...")
     merged_df = merge_betting_and_boxscore_data(
         clean_spreads, clean_mls, clean_boxscores = df)
     
+    
     stats_per_100 = normalize_per_100_poss(merged_df)
 
+    print("Aggregating over last 5, 10, and 20 game windows")
+    
     matchups = create_matchups(stats_per_100)
     
     team_stats_ewa_5 = build_team_avg_stats_df(matchups, span=5)
@@ -530,14 +539,20 @@ if __name__ == '__main__':
 
     df_full = df_full.sort_values(['GAME_DATE', 'GAME_ID', 'HOME_GAME'])
     
+    
+    print("adding rest days")
     df_full = add_rest_days(df_full)
 
+    print("creating matchups between Home and Away team aggregated stats")
     df_full = make_matchups_2(df_full)
 
+    print("Resorting by date")
     df_full = df_full.sort_values(['GAME_DATE', 'GAME_ID', 'HOME_HOME_GAME'])
 
+    print("dropping nulls")
     df_full = df_full.dropna()
     
+    print("loading table back into sql db as {}".format(table_name))
     df_full.to_sql(table_name, con = connection, if_exists='append')
     
     cur = connection.cursor()
