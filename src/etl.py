@@ -10,10 +10,10 @@ def load_team_data(conn, start_season, end_season):
     from sqlite db and merges them into one dataframe"""
     
 
-    basic = pd.read_sql("SELECT * FROM team_basic_boxscores", connection)
-    adv = pd.read_sql("SELECT * FROM team_advanced_boxscores", connection)
-    scoring = pd.read_sql("SELECT * FROM team_scoring_boxscores", connection)
-    tracking = pd.read_sql("SELECT * FROM team_tracking_boxscores", connection)
+    basic = pd.read_sql("SELECT * FROM team_basic_boxscores", conn)
+    adv = pd.read_sql("SELECT * FROM team_advanced_boxscores", conn)
+    scoring = pd.read_sql("SELECT * FROM team_scoring_boxscores", conn)
+    tracking = pd.read_sql("SELECT * FROM team_tracking_boxscores", conn)
 
     basic = basic.loc[basic['SEASON'].between(start_season, end_season)]
     basic[['GAME_ID', 'TEAM_ID']] = basic[['GAME_ID', 'TEAM_ID']].astype(str)
@@ -477,23 +477,23 @@ def make_matchups_2(df):
     
     return full_matchup_ewa
 
+def season_to_string(x):
+    return str(x) + '-' + str(x+1)[-2:]
 
-if __name__ == '__main__':
-    
-    start_season = '2013-14'
-    end_season = '2021-22'
-    
-    table_name = 'team_stats_ewa_matchup'
 
-    db_filepath = Path.cwd().joinpath('data', 'nba.db')
+def etl_pipeline(start_season = 2013, end_season = 2021, table_name = 'team_stats_ewa_matchup'):
+    start_season = season_to_string(start_season)
+    end_season = season_to_string(end_season)
 
-    connection = sqlite3.connect(db_filepath)
+    db_filepath = Path.home().joinpath('NBA_model_v1', 'data', 'nba.db')
+
+    conn = sqlite3.connect(db_filepath)
     
     print("Loading raw team boxscore data from sql database...")
     
-    df = load_team_data(connection, start_season, end_season)
+    df = load_team_data(conn, start_season, end_season)
     print("Loading betting data from sql database...")
-    spreads, moneylines = load_betting_data(connection)
+    spreads, moneylines = load_betting_data(conn)
     
     print("Cleaning Data...")
     
@@ -553,12 +553,17 @@ if __name__ == '__main__':
     df_full = df_full.dropna()
     
     print("loading table back into sql db as {}".format(table_name))
-    df_full.to_sql(table_name, con = connection, if_exists='append')
+    df_full.to_sql(table_name, con = conn, if_exists='append')
     
-    cur = connection.cursor()
+    cur = conn.cursor()
     cur.execute('DELETE FROM {} WHERE rowid NOT IN (SELECT min(rowid) FROM {} GROUP BY HOME_TEAM_ABBREVIATION, GAME_ID)'.format(table_name, table_name))
-    connection.commit()
+    conn.commit()
+    conn.close()
+    
 
-    connection.close()
+if __name__ == '__main__':
+    start_season = 2013
+    end_season = 2021
+    processed_data_table_name = 'team_stats_ewa_matchup'
     
-    
+    etl_pipeline(start_season = start_season, end_season = end_season, table_name = processed_data_table_name)
