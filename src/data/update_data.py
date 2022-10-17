@@ -452,20 +452,7 @@ def update_spreads(conn, season, custom_dates=[]):
     conn.commit()
     
     return None
-
-def update_all_data(conn, season):
-    """Combines all the update functions above into one function that updates all my data"""
-    print("updating basic team boxscores")
-    update_team_basic_boxscores(conn = conn, season=season)
-    print("updating advanced team boxscores")
-    update_team_advanced_boxscores(conn = conn, season=season, dates=[])
-    print("updating scoring boxscores")
-    update_team_scoring_boxscores(conn = conn, season=season, dates=[])
-    print("updating moneyline data")
-    update_moneylines(conn, season, custom_dates=[])
-    print("updating spreads data")
-    update_spreads(conn, season, custom_dates=[])
-    
+  
 
 def season_string(season):
     return str(season) + '-' + str(season+1)[-2:]
@@ -488,9 +475,28 @@ def get_season_games(season):
     
     return df
 
-if __name__ == "__main__":
+def update_all_data():
+    """Combines all the update functions above into one function that updates all my data"""
+    
     db_path = Path.home() / 'NBA_Model_v1' / 'data' / 'nba.db'
-    connection = sqlite3.connect(db_path)
     season = 2021
-    update_all_data(conn=connection, season=season)
+    connection = sqlite3.connect(db_path)
+
+    print("updating basic team boxscores")
+    update_team_basic_boxscores(conn = connection, season=season)
+    print("updating advanced team boxscores")
+    update_team_advanced_boxscores(conn = connection, season=season, dates=[])
+    print("updating scoring boxscores")
+    update_team_scoring_boxscores(conn = connection, season=season, dates=[])
+    print("updating moneyline data")
+    update_moneylines(connection, season, custom_dates=[])
+    print("updating spreads data")
+    update_spreads(connection, season, custom_dates=[])
+    
     connection.close()
+    
+
+if __name__ == "__main__":
+
+    update_all_data()
+    
