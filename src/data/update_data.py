@@ -163,7 +163,7 @@ def update_team_scoring_boxscores(conn, season, dates=[]):
     return game_ids_not_added
 
 
-def update_moneylines(conn, season=2021, custom_dates=[]):
+def update_moneylines(conn, season=2022, custom_dates=[]):
     
     table_name = 'moneylines'
     # Get current moneyline data
@@ -479,7 +479,7 @@ def update_all_data():
     """Combines all the update functions above into one function that updates all my data"""
     
     db_path = Path.home() / 'NBA_Model_v1' / 'data' / 'nba.db'
-    season = 2021
+    season = 2022
     connection = sqlite3.connect(db_path)
 
     print("updating basic team boxscores")
