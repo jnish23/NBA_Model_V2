@@ -20,13 +20,10 @@ def load_team_data(conn, start_season, end_season):
     scoring[['GAME_ID', 'TEAM_ID']] = scoring[['GAME_ID', 'TEAM_ID']].astype(str)
     tracking[['GAME_ID', 'TEAM_ID']] = tracking[['GAME_ID', 'TEAM_ID']].astype(str)
 
-    df = pd.merge(basic, adv, how='left', on=[
-                    'GAME_ID', 'TEAM_ID'], suffixes=['', '_y'])
-    df = pd.merge(df, scoring, how='left', on=[
-                  'GAME_ID', 'TEAM_ID'], suffixes=['', '_y'])
-    
-    df = pd.merge(df, tracking, how='left', on=['GAME_ID', 'TEAM_ID'],
-                  suffixes=['', '_y'])
+    df = pd.merge(basic, adv, how='left', on=['GAME_ID', 'TEAM_ID'], suffixes=['', '_y'])
+    df = pd.merge(df, scoring, how='left', on=['GAME_ID', 'TEAM_ID'], suffixes=['', '_y'])
+
+    df = pd.merge(df, tracking, how='left', on=['GAME_ID', 'TEAM_ID'],suffixes=['', '_y'])
     
 
     df = df.drop(columns=['TEAM_NAME_y', 'TEAM_CITY',
@@ -439,7 +436,9 @@ def add_percentage_features(df, span):
 
 def add_rest_days(df):
     
-    df['prev_game'] = df.groupby(['SEASON', 'TEAM_ABBREVIATION'])['GAME_DATE'].shift(1)
+    df = df.sort_values(['GAME_DATE'])
+    
+    df['prev_game'] = df.groupby(['TEAM_ABBREVIATION'])['GAME_DATE'].shift(1)
 
     df['REST'] = (df['GAME_DATE'] - df['prev_game']) / np.timedelta64(1, 'D')
             
@@ -551,7 +550,8 @@ def etl_pipeline(start_season, end_season, table_name = 'team_stats_ewa_matchup'
     print("dropping nulls")
     df_full = df_full.dropna()
     
-    print("loading table back into sql db as {}".format(table_name))
+    print(f"loading table back into sql db as {table_name}")
+    
     df_full.to_sql(table_name, con = conn, if_exists='append')
     
     cur = conn.cursor()

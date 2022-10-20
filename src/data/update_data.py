@@ -252,7 +252,6 @@ def update_moneylines(conn, season, custom_dates=[]):
         current_ml_data['AWAY_TEAM'] = current_ml_data['AWAY_TEAM'].replace(abbr_mapping)
 
         up_to_date_games = get_season_games(season)
-        print(up_to_date_games)
 
         merged_df = pd.merge(up_to_date_games, current_ml_data, how='left', 
                             left_on=['HOME_TEAM', 'AWAY_TEAM', 'GAME_DATE'],
@@ -288,8 +287,6 @@ def update_moneylines(conn, season, custom_dates=[]):
         driver.set_window_size(1920, 1024)
 
         single_row_events = driver.find_elements(By.XPATH, '//*[@id="tbody-nba"]/div')
-
-        print(len(single_row_events))
 
         seasons = []
         gm_dates = []
@@ -331,20 +328,20 @@ def update_moneylines(conn, season, custom_dates=[]):
             away_mls.append(away_moneyline)
             home_mls.append(home_moneyline)
 
+            clear_output(wait=True)
+            
+        driver.quit()
+    df = pd.DataFrame({'SEASON': seasons,
+                        'GM_DATE': gm_dates,
+                        'AWAY_TEAM': away_teams,
+                        'HOME_TEAM': home_teams,
+                        'AWAY_OPENING_ML':opening_mls_away,
+                        'HOME_OPENING_ML':opening_mls_home,
+                        'AWAY_ML': away_mls,
+                        'HOME_ML': home_mls,
+                        })
 
-        clear_output(wait=True)
-
-        df = pd.DataFrame({'SEASON': seasons,
-                            'GM_DATE': gm_dates,
-                            'AWAY_TEAM': away_teams,
-                            'HOME_TEAM': home_teams,
-                            'AWAY_OPENING_ML':opening_mls_away,
-                            'HOME_OPENING_ML':opening_mls_home,
-                            'AWAY_ML': away_mls,
-                            'HOME_ML': home_mls,
-                            })
-
-        df = df.sort_values(['GM_DATE']).reset_index(drop=True)
+    df = df.sort_values(['GM_DATE']).reset_index(drop=True)
 
     df.to_sql(table_name, conn, if_exists='append', index=False)
 
@@ -414,93 +411,70 @@ def update_spreads(conn, season, custom_dates=[]):
     dates_with_no_data = []
     
     for date in tqdm(missing_dates, desc='progress'):
-            web = 'https://www.sportsbookreview.com/betting-odds/nba-basketball/?date={}'.format(date)
+        web = 'https://www.sportsbookreview.com/betting-odds/nba-basketball/?date={}'.format(date)
 
-            driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
-            driver.get(web)
-            sleep(random.randint(2,3))
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
+        driver.get(web)
+        sleep(random.randint(1, 2))
+        driver.set_window_size(1920, 1024)
 
-            try:
-                single_row_events = driver.find_elements(By.CLASS_NAME, 'eventMarketGridContainer-3QipG')
-                
-            except:
-                print("No Data for {}".format(date))
-                dates_with_no_data.append(date)
-                continue
-                
-            num_postponed_events = len(driver.find_elements(By.CLASS_NAME, 'eventStatus-3EHqw'))
+        single_row_events = driver.find_elements(By.XPATH, '//*[@id="tbody-nba"]/div')
 
-            num_listed_events = len(single_row_events)
-            cutoff = num_listed_events - num_postponed_events
+        seasons = []
+        gm_dates = []
+        away_teams = []
+        home_teams = []
+        opening_spreads_away = []
+        opening_spreads_home = []
+        away_spreads = []
+        home_spreads = []
 
-            for event in single_row_events[:cutoff]:
+        for event in single_row_events:
+            
+            seasons.append('2022-23')
 
-                away_team = event.find_elements(By.CLASS_NAME, 'participantBox-3ar9Y')[0].text
-                home_team = event.find_elements(By.CLASS_NAME, 'participantBox-3ar9Y')[1].text
-                away_teams.append(away_team)
-                home_teams.append(home_team)
-                gm_dates.append(date)
+            away_team = event.find_elements(By.CLASS_NAME, 'GameRows_participantBox__0WCRz')[0].text
+            home_team = event.find_elements(By.CLASS_NAME, 'GameRows_participantBox__0WCRz')[1].text
+            away_teams.append(away_team)
+            home_teams.append(home_team)
 
-                seasons.append(season_string(season))
-                
-                scoreboard = event.find_elements(By.CLASS_NAME, 'scoreboard-1TXQV')
+            gm_dates.append(date)
 
-                home_score = []
-                away_score = []
+            opening_spreads_away.append(event.find_elements(By.CLASS_NAME, 'GameRows_opener__NivKJ')[1].text)
+            opening_spreads_home.append(event.find_elements(By.CLASS_NAME, 'GameRows_opener__NivKJ')[3].text)
 
-                for score in scoreboard:
-                    quarters = score.find_elements(By.CLASS_NAME, 'scoreboardColumn-2OtpR')
-                    for i in range(len(quarters)):
-                        scores = quarters[i].text.split('\n')
-                        away_score.append(scores[0])
-                        home_score.append(scores[1])
-                        
-                    home_score = ",".join(home_score)
-                    away_score = ",".join(away_score)
-                    
-                    away_scoreboards.append(away_score)
-                    home_scoreboards.append(home_score)
+            mls = event.find_elements(By.CLASS_NAME, 'GameRows_columnsContainer__Y94VP')[0].text.split('\n')
+            
+            away_spread = []
+            home_spread = []
+
+            for i, ml in enumerate(mls):
+                if i % 2 == 0:
+                    away_spread.append(ml)
+                else:
+                    home_spread.append(ml)
+
+            away_spread = ",".join(away_spread)
+            home_spread = ",".join(home_spread)
+
+            away_spreads.append(away_spread)
+            home_spreads.append(home_spread)
 
 
-                if len(away_scoreboards) != len(away_teams):
-                    num_to_add = len(away_teams) - len(away_scoreboards)
-                    for i in range(num_to_add):
-                        away_scoreboards.append('')
-                        home_scoreboards.append('')
+        clear_output(wait=True)
+        driver.quit()
+        
+    df = pd.DataFrame({'SEASON': seasons,
+                        'GM_DATE': gm_dates,
+                        'AWAY_TEAM': away_teams,
+                        'HOME_TEAM': home_teams,
+                        'AWAY_OPENING_SPREAD':opening_spreads_away,
+                        'HOME_OPENING_SPREAD':opening_spreads_home,
+                        'AWAY_SPREAD': away_spreads,
+                        'HOME_SPREAD': home_spreads,
+                        })
 
-                spreads = event.find_elements(By.CLASS_NAME, 'pointer-2j4Dk')
-                away_lines = []
-                home_lines = []
-                for i in range(len(spreads)):    
-                    if i % 2 == 0:
-                        away_lines.append(spreads[i].text)
-                    else:
-                        home_lines.append(spreads[i].text)
-                
-                away_lines = ",".join(away_lines)
-                home_lines = ",".join(home_lines)
-                
-                away_spreads.append(away_lines)
-                home_spreads.append(home_lines)
-
-                if len(away_spreads) != len(away_teams):
-                    num_to_add = len(away_teams) - len(away_spreads)
-                    for i in range(num_to_add):
-                        away_scoreboards.append('')
-                        home_scoreboards.append('')
-
-            driver.quit()
-            clear_output(wait=True)
-
-    df = pd.DataFrame({'SEASON':seasons, 
-                      'GM_DATE':gm_dates,
-                      'AWAY_TEAM':away_teams,
-                      'HOME_TEAM':home_teams,
-                      'AWAY_SCOREBOARD':away_scoreboards,
-                      'HOME_SCOREBOARD':home_scoreboards,
-                      'AWAY_SPREAD':away_spreads,
-                      'HOME_SPREAD':home_spreads})
-
+    df = df.sort_values(['GM_DATE']).reset_index(drop=True)
 
     df.to_sql(table_name, conn, if_exists='append', index=False)
     
