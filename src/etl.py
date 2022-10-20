@@ -9,7 +9,6 @@ def load_team_data(conn, start_season, end_season):
     """Loads basic, advanced, and scoring boxscores 
     from sqlite db and merges them into one dataframe"""
     
-
     basic = pd.read_sql("SELECT * FROM team_basic_boxscores", conn)
     adv = pd.read_sql("SELECT * FROM team_advanced_boxscores", conn)
     scoring = pd.read_sql("SELECT * FROM team_scoring_boxscores", conn)
@@ -481,7 +480,7 @@ def season_to_string(x):
     return str(x) + '-' + str(x+1)[-2:]
 
 
-def etl_pipeline(start_season = 2013, end_season = 2021, table_name = 'team_stats_ewa_matchup'):
+def etl_pipeline(start_season, end_season, table_name = 'team_stats_ewa_matchup'):
     start_season = season_to_string(start_season)
     end_season = season_to_string(end_season)
 
@@ -556,14 +555,14 @@ def etl_pipeline(start_season = 2013, end_season = 2021, table_name = 'team_stat
     df_full.to_sql(table_name, con = conn, if_exists='append')
     
     cur = conn.cursor()
-    cur.execute('DELETE FROM {} WHERE rowid NOT IN (SELECT min(rowid) FROM {} GROUP BY HOME_TEAM_ABBREVIATION, GAME_ID)'.format(table_name, table_name))
+    cur.execute(f'DELETE FROM {table_name} WHERE rowid NOT IN (SELECT min(rowid) FROM {table_name} GROUP BY HOME_TEAM_ABBREVIATION, GAME_ID)')
     conn.commit()
     conn.close()
     
 
 if __name__ == '__main__':
     start_season = 2013
-    end_season = 2021
+    end_season = 2022
     processed_data_table_name = 'team_stats_ewa_matchup'
     
     etl_pipeline(start_season = start_season, end_season = end_season, table_name = processed_data_table_name)

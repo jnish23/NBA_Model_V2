@@ -142,7 +142,7 @@ def update_team_scoring_boxscores(conn, season, dates=[]):
     print("num_games_updated:", num_games_updated)
 
     if num_games_updated == 0:
-        print("All team advanced boxscores up to date in season {}".format(season_str))
+        print("All team scoring boxscores up to date in season {}".format(season_str))
         return None
 
     for game_id in tqdm(missing_game_ids, desc='progress'):
@@ -163,7 +163,67 @@ def update_team_scoring_boxscores(conn, season, dates=[]):
     return game_ids_not_added
 
 
-def update_moneylines(conn, season=2022, custom_dates=[]):
+def update_team_tracking_boxscores(conn, season, dates=[]):
+    table_name = 'team_tracking_boxscores'
+
+    season_str = season_string(season)
+
+    game_ids_not_added = []
+
+    # Pull the GAME_IDs from my data
+    game_ids_in_db = pd.read_sql(f'''SELECT DISTINCT team_tracking_boxscores.GAME_ID FROM team_basic_boxscores
+                INNER JOIN team_tracking_boxscores 
+                ON team_basic_boxscores.GAME_ID = team_tracking_boxscores.GAME_ID
+                AND team_basic_boxscores.TEAM_ID = team_tracking_boxscores.TEAM_ID
+                WHERE SEASON = "{season_str}" ''', conn)
+
+    game_ids_in_db = game_ids_in_db['GAME_ID'].tolist()
+
+    missing_game_ids = []
+    if len(dates) != 0:
+        for date in dates:
+            gamelogs = leaguegamelog.LeagueGameLog(
+                season=season_str, date_from_nullable=date, date_to_nullable=date).get_data_frames()[0]
+            missing_game_ids.extend(gamelogs['GAME_ID'].unique())
+
+    else:
+        # get up to date GAME_IDs
+        to_date_game_ids = []
+        for season_type in ['Regular Season', 'Playoffs']:
+            to_date_gamelogs = leaguegamelog.LeagueGameLog(
+                season=season_str, season_type_all_star=season_type).get_data_frames()[0]
+            to_date_game_ids.extend(to_date_gamelogs['GAME_ID'].unique())
+
+        # See which game_ids are missing
+        missing_game_ids = set(to_date_game_ids) - set(game_ids_in_db)
+        
+    num_games_updated = len(missing_game_ids)
+    print("num_games_updated:", num_games_updated)
+
+    if num_games_updated == 0:
+        print("All team tracking boxscores up to date in season {}".format(season_str))
+        return None
+
+    for game_id in tqdm(missing_game_ids, desc='progress'):
+        try:
+            boxscores = boxscoreplayertrackv2.BoxScorePlayerTrackV2(
+                game_id).get_data_frames()[1]
+            boxscores.to_sql(table_name, conn,
+                             if_exists='append', index=False)
+            sleep(2)
+        except:
+            game_ids_not_added.append(game_id)
+
+    cur = conn.cursor()
+    cur.execute('DELETE FROM {} WHERE rowid NOT IN (SELECT max(rowid) FROM {} GROUP BY TEAM_ID, GAME_ID)'.format(
+        table_name, table_name))
+    conn.commit()
+
+    return game_ids_not_added
+
+
+
+def update_moneylines(conn, season, custom_dates=[]):
     
     table_name = 'moneylines'
     # Get current moneyline data
@@ -488,6 +548,8 @@ def update_all_data():
     update_team_advanced_boxscores(conn = connection, season=season, dates=[])
     print("updating scoring boxscores")
     update_team_scoring_boxscores(conn = connection, season=season, dates=[])
+    print("updating tracking boxscores")
+    update_team_tracking_boxscores(conn = connection, season=season, dates=[])
     print("updating moneyline data")
     update_moneylines(connection, season, custom_dates=[])
     print("updating spreads data")

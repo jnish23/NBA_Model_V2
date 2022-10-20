@@ -1,0 +1,12 @@
+{
+  "type": "service_account",
+  "project_id": "nba-model-314520",
+  "private_key_id": "a7e4b87dbdb67d482597fde7b1921ba5381d13ea",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC7UIV4Ga0dMZb6\nuB6Pglwjbt5oXW9opkuPyxVAJ+wZCITXGg6inJXWaEyzdMfWQepwlwUdPvroEzzo\nf3cymSwx0FvuhPL/GD96XJl1Zr+YTwPaNtJmFae6Sz28lTfCL3WniYAUDft1OBQ4\nficDtA5XcvgEfu+z+cPcd30sLz9d8yG0u+dYEofrS0tTvfX39ZnbbMUQckvj+fOc\n2YJSV8A0sG9PaRQ7VwEiZMLeV8q3Ff/sqkzx1y6bJiX2koY3fXGKpuvco1n+DJRI\nQg7j4FnywZ/YOqOjGTb6F318x5XXjur1fiIRD+J09prtGVDZwd2nGQmQoSbWkiX/\n/I6RxyANAgMBAAECggEAByRNDnT2KYKKReFuwtx+zFgOEU8csBIFGASvePx8r0Co\npfXnoHIVcXEVGZOGiggF2wibCJAt61rOa/PuNMbrzTNrSecWR70iMHVm4XfLLtC2\nbiPAdmV1eXAkeLP8xgHeu8ZNlJYq4/+BH91JegXrtRBcXfmEBKntepKwulZL1XZe\nibsaX0oZAvCju3+tu+qaR3bjng9ynbXtNjHu6hvpK6e96w1YBUKkBcIuul8NPOSV\nqDhEfJ2bnN/TS+P5gEdbAAhsAkIxCsbc9oxF0STNUXxc/ChFGH5Eg981/r4xp9Bf\nW7YT1N+XbVLAcn7q1tapqxWGyEUu4sxxhLFRwTMtMQKBgQD/QXkJvLxIYL0qNVoR\nf4eleJ9tMDyI90+JaRUN9U09Cm4Z9KdKKpPdRiOZDBDpdle0VxisrRntM6mIW0Mp\nhBHgCIl6xRx9075UtsV1oXMWT8mns/UxtSzRZdtajPK8eCw/5hiXuqY022D1fHjy\nT/nFAszBVR3/YxIlAJei+ds28QKBgQC73FYKATpMprAtPrkBbcQE7Mlj+GG/A93T\n5NBacF76+ZqP4BIG3A9pYkPuUTyL98pnrQm0DbaZLmBmATihCRWIMlbPZ8bcedFI\n0tof9z20giPY1zo58D4ZzVQL/hQSaViPIjP5p+Ugbk5jqqCxjHiEPdOo1tT4lOQX\nheDKCefS3QKBgHmhvEh8jAe9OUasp5+g8oVSBj4kdyQZHOhwj1zYYBbPKonpv/Gi\nelU9f+cFDeYBw2cm/ZYC4lDahlV4j3dv/IiR6Nj8pkf7Jz383fjglxOxr3jfUt59\n475gV/c9JMnURdmpDlz2zw5u3zP7PTLSE0XiwKj7o1C358SEFL3Pa7sxAoGBALmz\nCT3kjsucbkSbXufhqEWyBzWSHpVibhH6elccA1eWCso0Fb3AJF/o6fuXRAGcFPE9\nJH1enOR46oOKq37L6wPxtsxY6kOhC1cwTrwQe2eGyYac4orJR6nbxTwBkbfNeOQs\nTDJ6W80eHND6ptQ7Zhpav3KDwoxjKcFy7ozpE8blAoGBAJmJpLdPHlGm4/yUJp0W\nvrUNNKnCYG1kfGPvES1vOGSQO0DZFr3EfK+dAngblddh7ZuFLMMXvJonShkWPBx/\n+6o1IPMrJnfxSUJBOHLxyDXxbgftjLJLUrfxz7jKUh0ubLe7w7ZG1u7ViPFabXkX\nYVZtZniRZUh+0QZnVDLd5NzB\n-----END PRIVATE KEY-----\n",
+  "client_email": "jordan@nba-model-314520.iam.gserviceaccount.com",
+  "client_id": "102003433180306729569",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/jordan%40nba-model-314520.iam.gserviceaccount.com"
+}
