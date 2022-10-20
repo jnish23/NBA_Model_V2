@@ -227,10 +227,10 @@ def update_moneylines(conn, season, custom_dates=[]):
     
     table_name = 'moneylines'
     # Get current moneyline data
-
+    
     if len(custom_dates) == 0:
-        current_ml_data = pd.read_sql_query(
-            "SELECT * FROM moneylines", conn)
+        
+        current_ml_data = pd.read_sql_query("SELECT * FROM moneylines", conn)
 
         abbr_mapping = {'Boston': 'BOS', 'Portland': 'POR',
                         'L.A. Lakers': 'LAL', 'Brooklyn': 'BKN',
@@ -248,15 +248,16 @@ def update_moneylines(conn, season, custom_dates=[]):
                         'Houston': 'HOU', 'Milwaukee': 'MIL',
                         'Sacramento': 'SAC', 'Washington': 'WAS'}
 
-        current_ml_data['HOME_TEAM'] = current_ml_data['HOME_TEAM'].replace(
-            abbr_mapping)
-        current_ml_data['AWAY_TEAM'] = current_ml_data['AWAY_TEAM'].replace(
-            abbr_mapping)
+        current_ml_data['HOME_TEAM'] = current_ml_data['HOME_TEAM'].replace(abbr_mapping)
+        current_ml_data['AWAY_TEAM'] = current_ml_data['AWAY_TEAM'].replace(abbr_mapping)
 
         up_to_date_games = get_season_games(season)
+        print(up_to_date_games)
 
-        merged_df = pd.merge(up_to_date_games, current_ml_data, how='left', left_on=[
-                             'HOME_TEAM', 'AWAY_TEAM', 'GAME_DATE'], right_on=['HOME_TEAM', 'AWAY_TEAM', 'GM_DATE'])
+        merged_df = pd.merge(up_to_date_games, current_ml_data, how='left', 
+                            left_on=['HOME_TEAM', 'AWAY_TEAM', 'GAME_DATE'],
+                            right_on=['HOME_TEAM', 'AWAY_TEAM', 'GM_DATE'])
+        
         
         
         missing_dates = merged_df.loc[merged_df['AWAY_ML'].isnull(), 'GAME_DATE'].unique().tolist()
@@ -264,10 +265,11 @@ def update_moneylines(conn, season, custom_dates=[]):
     else:
         missing_dates = custom_dates
 
+
     if len(missing_dates) == 0:
         print("moneyline table is up to date")
         return None
-        
+
     seasons = []
     gm_dates = []
     away_teams = []
@@ -278,51 +280,50 @@ def update_moneylines(conn, season, custom_dates=[]):
     dates_with_no_data = []
 
     for date in tqdm(missing_dates, desc='progress'):
-        web = 'https://www.sportsbookreview.com/betting-odds/nba-basketball/money-line/?date={}'.format(
-            date)
-        
+        web = f'https://www.sportsbookreview.com/betting-odds/nba-basketball/money-line/?date={date}'
+
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
         driver.get(web)
         sleep(random.randint(1, 2))
+        driver.set_window_size(1920, 1024)
 
-        try:
-            single_row_events = driver.find_elements(By.CLASS_NAME, 
-                'eventMarketGridContainer-3QipG')
+        single_row_events = driver.find_elements(By.XPATH, '//*[@id="tbody-nba"]/div')
 
-        except:
-            print("No Data for {}".format(date))
-            dates_with_no_data.append(date)
-            continue
+        print(len(single_row_events))
 
-        num_postponed_events = len(
-            driver.find_elements(By.CLASS_NAME, 'eventStatus-3EHqw'))
+        seasons = []
+        gm_dates = []
+        away_teams = []
+        home_teams = []
+        opening_mls_away = []
+        opening_mls_home = []
+        away_mls = []
+        home_mls = []
 
-        num_listed_events = len(single_row_events)
-        cutoff = num_listed_events - num_postponed_events
+        for event in single_row_events:
+            
+            seasons.append('2022-23')
 
-        for event in single_row_events[:cutoff]:
-            seasons.append(season_string(season))
-
-            away_team = event.find_elements(By.CLASS_NAME, 
-                'participantBox-3ar9Y')[0].text
-            home_team = event.find_elements(By.CLASS_NAME, 
-                'participantBox-3ar9Y')[1].text
-
+            away_team = event.find_elements(By.CLASS_NAME, 'GameRows_participantBox__0WCRz')[0].text
+            home_team = event.find_elements(By.CLASS_NAME, 'GameRows_participantBox__0WCRz')[1].text
             away_teams.append(away_team)
             home_teams.append(home_team)
 
             gm_dates.append(date)
 
-            mls = event.find_elements(By.CLASS_NAME, 'pointer-2j4Dk')
+            opening_mls_away.append(event.find_elements(By.CLASS_NAME, 'GameRows_opener__NivKJ')[2].text)
+            opening_mls_home.append(event.find_elements(By.CLASS_NAME, 'GameRows_opener__NivKJ')[4].text)
 
+            mls = event.find_elements(By.CLASS_NAME, 'GameRows_columnsContainer__Y94VP')[0].text.split('\n')
+            
             away_moneyline = []
             home_moneyline = []
 
             for i, ml in enumerate(mls):
                 if i % 2 == 0:
-                    away_moneyline.append(ml.text)
+                    away_moneyline.append(ml)
                 else:
-                    home_moneyline.append(ml.text)
+                    home_moneyline.append(ml)
 
             away_moneyline = ",".join(away_moneyline)
             home_moneyline = ",".join(home_moneyline)
@@ -330,26 +331,26 @@ def update_moneylines(conn, season, custom_dates=[]):
             away_mls.append(away_moneyline)
             home_mls.append(home_moneyline)
 
-        driver.quit()
-        sleep(random.randint(2, 3))
 
-    clear_output(wait=True)
+        clear_output(wait=True)
 
-    df = pd.DataFrame({'SEASON': seasons,
-                       'GM_DATE': gm_dates,
-                       'AWAY_TEAM': away_teams,
-                      'HOME_TEAM': home_teams,
-                       'AWAY_ML': away_mls,
-                       'HOME_ML': home_mls,
-                       })
+        df = pd.DataFrame({'SEASON': seasons,
+                            'GM_DATE': gm_dates,
+                            'AWAY_TEAM': away_teams,
+                            'HOME_TEAM': home_teams,
+                            'AWAY_OPENING_ML':opening_mls_away,
+                            'HOME_OPENING_ML':opening_mls_home,
+                            'AWAY_ML': away_mls,
+                            'HOME_ML': home_mls,
+                            })
 
-    df = df.sort_values(['GM_DATE']).reset_index(drop=True)
+        df = df.sort_values(['GM_DATE']).reset_index(drop=True)
 
     df.to_sql(table_name, conn, if_exists='append', index=False)
 
     cur = conn.cursor()
-    cur.execute('''DELETE FROM moneylines 
-                    WHERE rowid NOT IN (SELECT MAX(rowid) FROM moneylines
+    cur.execute(f'''DELETE FROM {table_name} 
+                    WHERE rowid NOT IN (SELECT MAX(rowid) FROM {table_name}
                                         GROUP BY GM_DATE, AWAY_TEAM, HOME_TEAM, AWAY_ML, HOME_ML)''')
     conn.commit()
 
@@ -361,8 +362,7 @@ def update_spreads(conn, season, custom_dates=[]):
     # Get current spread data
     
     if len(custom_dates) == 0:
-        current_spread_data = pd.read_sql_query(
-            "SELECT * FROM spreads", conn)
+        current_spread_data = pd.read_sql_query(f"SELECT * FROM {table_name}", conn)
 
         abbr_mapping = {'Boston': 'BOS', 'Portland': 'POR',
                         'L.A. Lakers': 'LAL', 'Brooklyn': 'BKN',
@@ -388,21 +388,20 @@ def update_spreads(conn, season, custom_dates=[]):
         up_to_date_games = get_season_games(season)
 
         merged_df = pd.merge(up_to_date_games, current_spread_data, how='left', left_on=[
-                             'HOME_TEAM', 'AWAY_TEAM', 'GAME_DATE'], right_on=['HOME_TEAM', 'AWAY_TEAM', 'GM_DATE'])
+                                'HOME_TEAM', 'AWAY_TEAM', 'GAME_DATE'], right_on=['HOME_TEAM', 'AWAY_TEAM', 'GM_DATE'])
         
         
         missing_dates = merged_df.loc[merged_df['AWAY_SPREAD'].isnull(), 'GAME_DATE'].unique().tolist()
 
         print("Updating spreads for {} days".format(len(missing_dates)))
-
+    
     else:
         missing_dates = custom_dates
-
-        
+    
     if len(missing_dates) == 0:
         print("spreads table is up to date")
         return None 
-    
+
     seasons = []
     gm_dates = []
     away_teams = []
@@ -506,8 +505,8 @@ def update_spreads(conn, season, custom_dates=[]):
     df.to_sql(table_name, conn, if_exists='append', index=False)
     
     cur = conn.cursor()
-    cur.execute('''DELETE FROM spreads 
-                    WHERE rowid NOT IN (SELECT MAX(rowid) FROM spreads 
+    cur.execute(f'''DELETE FROM {table_name} 
+                    WHERE rowid NOT IN (SELECT MAX(rowid) FROM {table_name} 
                                         GROUP BY GM_DATE, AWAY_TEAM, HOME_TEAM, AWAY_SPREAD, HOME_SPREAD)''')
     conn.commit()
     
@@ -534,6 +533,7 @@ def get_season_games(season):
     lambda x: x[:3] if '@' in x else x[-3:])
     
     return df
+
 
 def update_all_data():
     """Combines all the update functions above into one function that updates all my data"""
