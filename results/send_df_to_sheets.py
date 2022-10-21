@@ -7,6 +7,7 @@ from pathlib import Path
 path_to_results = Path().home().joinpath('NBA_Model_v1', 'results', 'betting_predictions_2022.csv')
 
 df = pd.read_csv(path_to_results)
+df = df.drop_duplicates(subset=['home_team', 'away_team', 'game_date'], keep='last')
 
 scope = ['https://spreadsheets.google.com/feeds',
          'https://www.googleapis.com/auth/drive']
