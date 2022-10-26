@@ -17,7 +17,7 @@ preds = preds.drop_duplicates(subset=['home_team', 'away_team', 'game_date'], ke
 
 connection = sqlite3.connect(path_to_db)
 scores = pd.read_sql(f"""SELECT SEASON, GAME_DATE, HOME_TEAM_ABBREVIATION, MATCHUP, HOME_TEAM_SCORE, AWAY_TEAM_SCORE 
-                    FROM team_stats_ewa_matchup
+                    FROM team_stats_ewa_matchup_prod
                     WHERE SEASON = '{season}'""", con = connection)
 
 scores['GAME_DATE'] = pd.to_datetime(scores['GAME_DATE']).astype(str)

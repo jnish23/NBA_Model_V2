@@ -1,15 +1,23 @@
+from datetime import date, timedelta
 import numpy as np
 import pandas as pd
-import sqlite3
 from pathlib import Path
+import sqlite3
 import warnings
-from datetime import timedelta
+import sys
 
+sys.path.append('C:/Users/Jordan Nishimura/NBA_Model_v1')
+
+from src.models.model_preparation import get_draftking_lines, clean_draftking_lines
+from src.data.process_data_no_split import get_data_from_db_all
 
 def load_team_data(conn, start_season, end_season):
     """Loads basic, advanced, and scoring boxscores 
     from sqlite db and merges them into one dataframe"""
     
+    start_season = season_to_string(start_season)
+    end_season = season_to_string(end_season)
+
     basic = pd.read_sql("SELECT * FROM team_basic_boxscores", conn)
     adv = pd.read_sql("SELECT * FROM team_advanced_boxscores", conn)
     scoring = pd.read_sql("SELECT * FROM team_scoring_boxscores", conn)
@@ -21,10 +29,13 @@ def load_team_data(conn, start_season, end_season):
     scoring[['GAME_ID', 'TEAM_ID']] = scoring[['GAME_ID', 'TEAM_ID']].astype(str)
     tracking[['GAME_ID', 'TEAM_ID']] = tracking[['GAME_ID', 'TEAM_ID']].astype(str)
 
-    df = pd.merge(basic, adv, how='left', on=['GAME_ID', 'TEAM_ID'], suffixes=['', '_y'])
-    df = pd.merge(df, scoring, how='left', on=['GAME_ID', 'TEAM_ID'], suffixes=['', '_y'])
-
-    df = pd.merge(df, tracking, how='left', on=['GAME_ID', 'TEAM_ID'],suffixes=['', '_y'])
+    df = pd.merge(basic, adv, how='left', on=[
+                    'GAME_ID', 'TEAM_ID'], suffixes=['', '_y'])
+    df = pd.merge(df, scoring, how='left', on=[
+                  'GAME_ID', 'TEAM_ID'], suffixes=['', '_y'])
+    
+    df = pd.merge(df, tracking, how='left', on=['GAME_ID', 'TEAM_ID'],
+                  suffixes=['', '_y'])
     
 
     df = df.drop(columns=['TEAM_NAME_y', 'TEAM_CITY',
@@ -437,6 +448,7 @@ def add_percentage_features(df, span):
 
 def add_rest_days_adv(df):
     
+    df['GAME_DATE'] = pd.to_datetime(df['GAME_DATE'])
     df['prev_game'] = df.groupby(['SEASON', 'TEAM_ABBREVIATION'])['GAME_DATE'].shift(1)
 
     df['REST'] = (df['GAME_DATE'] - df['prev_game']) / np.timedelta64(1, 'D')
@@ -474,7 +486,6 @@ def add_rest_days_adv(df):
     
     return df
 
-
 def make_matchups_2(df):
     df = df.copy()
     
@@ -501,44 +512,73 @@ def make_matchups_2(df):
     
     return full_matchup_ewa
 
+
 def season_to_string(x):
     return str(x) + '-' + str(x+1)[-2:]
 
 
-def etl_pipeline(start_season, end_season, table_name):
-    start_season = season_to_string(start_season)
-    end_season = season_to_string(end_season)
-
-    db_filepath = Path.home().joinpath('NBA_model_v1', 'data', 'nba.db')
-
-    conn = sqlite3.connect(db_filepath)
+def generate_features_for_model(conn, start_season, end_season):
     
     print("Loading raw team boxscore data from sql database...")
-    
+
     df = load_team_data(conn, start_season, end_season)
     print("Loading betting data from sql database...")
     spreads, moneylines = load_betting_data(conn)
-    
+
     print("Cleaning Data...")
-    
+
     df = clean_team_data(df)
     df = prep_for_aggregation(df)
 
     clean_mls = clean_moneyline_df(df = moneylines)
     clean_spreads = clean_spreads_df(df = spreads)
-    
-    
+
+
     print("Merging Boxscore and Betting Data...")
-    merged_df = merge_betting_and_boxscore_data(
-        clean_spreads, clean_mls, clean_boxscores = df)
-    
-    
-    stats_per_100 = normalize_per_100_poss(merged_df)
+    merged_df = merge_betting_and_boxscore_data(clean_spreads, clean_mls, clean_boxscores = df)
+
+    # print("Getting Draftking Lines...") 
+    dk_lines_df = get_draftking_lines(date=date.today())
+    dk_lines_clean = clean_draftking_lines(dk_lines_df)
+
+    team_abbreviation = []
+    game_id = []
+    matchup = []
+    home_game = []
+
+    for i, row in dk_lines_clean.iterrows():
+        home_team = row['home_team']
+        away_team = row['away_team']
+        
+        team_abbreviation.append(home_team)
+        home_game.append(1)
+        game_id.append(i)
+        matchup.append(home_team + ' vs. ' + away_team)
+        
+        team_abbreviation.append(away_team)
+        home_game.append(0)
+        game_id.append(i)
+        matchup.append(away_team + ' @ ' + home_team)
+        
+
+    todays_matchups = pd.DataFrame({'TEAM_ABBREVIATION':team_abbreviation,
+                                    'MATCHUP':matchup,
+                                    'GAME_ID':game_id,
+                                    'HOME_GAME':home_game})
+
+    todays_matchups['SEASON'] = '2022-23'
+    todays_matchups['GAME_DATE'] = date.today()
+
+    merged_df_with_todays_games = pd.concat([merged_df, todays_matchups])
+
+    merged_df_with_todays_games
+
+    stats_per_100 = normalize_per_100_poss(merged_df_with_todays_games)
+
+    matchups = create_matchups(stats_per_100)
 
     print("Aggregating over last 5, 10, and 20 game windows")
-    
-    matchups = create_matchups(stats_per_100)
-    
+        
     team_stats_ewa_5 = build_team_avg_stats_df(matchups, span=5)
     team_stats_ewa_5 = add_percentage_features(team_stats_ewa_5, span=5)
 
@@ -556,39 +596,38 @@ def etl_pipeline(start_season, end_season, table_name):
                         'POINT_DIFF', 'WL'])
 
     df_full = pd.merge(temp, team_stats_ewa_20, how='inner', 
-                       on=['SEASON', 'TEAM_ABBREVIATION', 'GAME_DATE',
+                        on=['SEASON', 'TEAM_ABBREVIATION', 'GAME_DATE',
                             'GAME_ID', 'MATCHUP', 'HOME_GAME', 'TEAM_SCORE',
                             'ML', 'SPREAD', 'ATS_DIFF', 'TEAM_COVERED', 
                             'POINT_DIFF', 'WL'])
 
     df_full = df_full.sort_values(['GAME_DATE', 'GAME_ID', 'HOME_GAME'])
-    
-    
+
+
     print("adding rest days")
     df_full = add_rest_days_adv(df_full)
 
     print("creating matchups between Home and Away team aggregated stats")
     df_full = make_matchups_2(df_full)
 
-    print("Resorting by date")
-    df_full = df_full.sort_values(['GAME_DATE', 'GAME_ID', 'HOME_HOME_GAME'])
-
-    print("dropping nulls")
-    df_full = df_full.dropna()
     
-    print(f"loading table back into sql db as {table_name}")
+    df_full = df_full.loc[df_full['GAME_DATE'] == pd.to_datetime(date.today())]
     
-    df_full.to_sql(table_name, con = conn, if_exists='append')
+    path_to_db = Path.home().joinpath('NBA_model_v1', 'data', 'nba.db')
+    X, y, df = get_data_from_db_all(target = 'HOME_WL', db_filepath = path_to_db, table = 'team_stats_ewa_matchup_prod')
     
-    cur = conn.cursor()
-    cur.execute(f'DELETE FROM {table_name} WHERE rowid NOT IN (SELECT min(rowid) FROM {table_name} GROUP BY HOME_TEAM_ABBREVIATION, GAME_ID)')
-    conn.commit()
-    conn.close()
+    features = df_full[X.columns]
+    
+    matchup_info = df_full[['SEASON', 'HOME_TEAM_ABBREVIATION', 'GAME_DATE', 'MATCHUP']]
+    
+    return matchup_info, features
     
 
 if __name__ == '__main__':
+    
     start_season = 2013
     end_season = 2022
-    processed_data_table_name = 'team_stats_ewa_matchup_prod'
+    path_to_db = Path.home().joinpath('NBA_model_v1', 'data', 'nba.db')
+    conn = sqlite3.connect(path_to_db)
     
-    etl_pipeline(start_season = start_season, end_season = end_season, table_name = processed_data_table_name)
+    generate_features_for_model(conn, start_season, end_season)

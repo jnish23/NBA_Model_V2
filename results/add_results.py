@@ -11,7 +11,7 @@ connection = sqlite3.connect(path_to_db)
 # print(pd.read_sql('''SELECT name FROM sqlite_schema WHERE type='table' ORDER BY name''', con = connection))
 
 df = pd.read_sql(f"""SELECT SEASON, GAME_DATE, HOME_TEAM_ABBREVIATION, MATCHUP, HOME_TEAM_SCORE, AWAY_TEAM_SCORE 
-                    FROM team_stats_ewa_matchup
+                    FROM team_stats_ewa_matchup_prod
                     WHERE SEASON = '{season}'""", con = connection)
 
 df['GAME_DATE'] = pd.to_datetime(df['GAME_DATE']).astype(str)
