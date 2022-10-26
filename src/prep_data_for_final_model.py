@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 import numpy as np
 import pandas as pd
 import sqlite3
@@ -441,11 +441,12 @@ def add_rest_days_for_model(df):
         team_df = df.loc[df['TEAM_ABBREVIATION'] == team].sort_values('GAME_DATE')
         idx = team_df.index
         team_df['REST'] = (team_df['GAME_DATE'].shift(-1) - team_df['GAME_DATE']) / np.timedelta64(1, 'D')
-        team_df.at[max(idx), 'REST'] = (pd.to_datetime(date.today()) - team_df.at[max(idx), 'GAME_DATE']) / np.timedelta64(1, 'D')
+        team_df.at[max(idx), 'REST'] = (pd.to_datetime(date.today()) - team_df.at[max(idx), 'GAME_DATE']) / np.timedelta64(1, 'D')      
+
 
         df.loc[idx, 'REST'] = team_df['REST']
-        df.loc[df['REST'] >= 8, 'REST'] = 8
-            
+    df.loc[df['REST'] >= 7, 'REST'] = 7
+        
     return df
 
 
