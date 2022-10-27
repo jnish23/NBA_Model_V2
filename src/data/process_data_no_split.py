@@ -15,7 +15,7 @@ def season_to_string(x):
     return str(x) + '-' + str(x+1)[-2:]
 
 
-def get_data_from_db_all(target, db_filepath):
+def get_data_from_db_all(target, db_filepath, table = 'team_stats_ewa_matchup_prod'):
     """
     Gets features X and targets y from all available data to retrain model
         before making a new prediction
@@ -31,7 +31,7 @@ def get_data_from_db_all(target, db_filepath):
     print(db_filepath)
     connection = sqlite3.connect(db_filepath)
 
-    df = pd.read_sql('SELECT * FROM team_stats_ewa_matchup', con=connection)
+    df = pd.read_sql(f'SELECT * FROM {table}', con=connection)
     df = df.drop(columns=['index'])
     connection.close()
 
@@ -69,3 +69,8 @@ def get_data_from_db_all(target, db_filepath):
     y = df[target]
 
     return X, y, df
+
+if __name__ == '__main__':
+    target = 'HOME_WL'
+    db_filepath = Path.home().joinpath('NBA_Model_v1', 'data', 'nba.db')
+    get_data_from_db_all(target, db_filepath, table = 'team_stats_ewa_matchup_prod')

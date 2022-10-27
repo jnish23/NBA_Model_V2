@@ -3,6 +3,7 @@ import pandas as pd
 import sqlite3
 from pathlib import Path
 import warnings
+from datetime import timedelta
 
 
 def load_team_data(conn, start_season, end_season):
@@ -434,17 +435,42 @@ def add_percentage_features(df, span):
     return df
 
 
-def add_rest_days(df):
+def add_rest_days_adv(df):
     
-    df = df.sort_values(['GAME_DATE'])
-    
-    df['prev_game'] = df.groupby(['TEAM_ABBREVIATION'])['GAME_DATE'].shift(1)
+    df['prev_game'] = df.groupby(['SEASON', 'TEAM_ABBREVIATION'])['GAME_DATE'].shift(1)
 
     df['REST'] = (df['GAME_DATE'] - df['prev_game']) / np.timedelta64(1, 'D')
             
-    df.loc[df['REST'] >= 8, 'REST'] = 8
+    df.loc[df['REST'] >= 7, 'REST'] = 7
     
-    df = df.drop(columns=['prev_game'])
+    df['3daysago'] = df['GAME_DATE'] - timedelta(days=3)
+    df['2daysago'] = df['GAME_DATE'] - timedelta(days=2)
+    df['1daysago'] = df['GAME_DATE'] - timedelta(days=1)
+
+    df = pd.merge(df, df[['TEAM_ABBREVIATION', 'GAME_DATE']], 
+                    how='left',
+                    left_on = ['TEAM_ABBREVIATION', '1daysago'],
+                    right_on = ['TEAM_ABBREVIATION', 'GAME_DATE'],
+                    suffixes=['', '_1'])
+
+    df = pd.merge(df, df[['TEAM_ABBREVIATION', 'GAME_DATE']], 
+                    how='left',
+                    left_on = ['TEAM_ABBREVIATION', '2daysago'],
+                    right_on = ['TEAM_ABBREVIATION', 'GAME_DATE'],
+                    suffixes=['', '_2'])
+
+    df = pd.merge(df, df[['TEAM_ABBREVIATION', 'GAME_DATE']], 
+                    how='left',
+                    left_on = ['TEAM_ABBREVIATION', '3daysago'],
+                    right_on = ['TEAM_ABBREVIATION', 'GAME_DATE'],
+                    suffixes=['', '_3'])
+
+    df[['GAME_DATE_1', 'GAME_DATE_2', 'GAME_DATE_3']] = df[['GAME_DATE_1', 'GAME_DATE_2', 'GAME_DATE_3']].notnull().astype(int)
+
+    df['Threein4B2B'] = ((df['GAME_DATE_1'] == 1) & (df['GAME_DATE_2'] == 0) & (df['GAME_DATE_3'] == 1)).astype(int)
+    df['Threein4'] = ((df['GAME_DATE_1'] == 0) & (df['GAME_DATE_2'] == 1) & (df['GAME_DATE_3'] == 1)).astype(int)
+    
+    df = df.drop(columns=['prev_game', '3daysago', '2daysago', '1daysago', 'GAME_DATE_1', 'GAME_DATE_2', 'GAME_DATE_3'])
     
     return df
 
@@ -479,7 +505,7 @@ def season_to_string(x):
     return str(x) + '-' + str(x+1)[-2:]
 
 
-def etl_pipeline(start_season, end_season, table_name = 'team_stats_ewa_matchup'):
+def etl_pipeline(start_season, end_season, table_name):
     start_season = season_to_string(start_season)
     end_season = season_to_string(end_season)
 
@@ -539,7 +565,7 @@ def etl_pipeline(start_season, end_season, table_name = 'team_stats_ewa_matchup'
     
     
     print("adding rest days")
-    df_full = add_rest_days(df_full)
+    df_full = add_rest_days_adv(df_full)
 
     print("creating matchups between Home and Away team aggregated stats")
     df_full = make_matchups_2(df_full)
@@ -563,6 +589,6 @@ def etl_pipeline(start_season, end_season, table_name = 'team_stats_ewa_matchup'
 if __name__ == '__main__':
     start_season = 2013
     end_season = 2022
-    processed_data_table_name = 'team_stats_ewa_matchup'
+    processed_data_table_name = 'team_stats_ewa_matchup_prod'
     
     etl_pipeline(start_season = start_season, end_season = end_season, table_name = processed_data_table_name)

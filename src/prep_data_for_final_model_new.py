@@ -1,15 +1,22 @@
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 import numpy as np
 import pandas as pd
-import sqlite3
 from pathlib import Path
+import sqlite3
 import warnings
+import sys
 
+sys.path.append('C:/Users/Jordan Nishimura/NBA_Model_v1')
+
+from src.models.model_preparation import get_draftking_lines, clean_draftking_lines
+from src.data.process_data_no_split import get_data_from_db_all
 
 def load_team_data(conn, start_season, end_season):
     """Loads basic, advanced, and scoring boxscores 
     from sqlite db and merges them into one dataframe"""
     
+    start_season = season_to_string(start_season)
+    end_season = season_to_string(end_season)
 
     basic = pd.read_sql("SELECT * FROM team_basic_boxscores", conn)
     adv = pd.read_sql("SELECT * FROM team_advanced_boxscores", conn)
@@ -22,9 +29,13 @@ def load_team_data(conn, start_season, end_season):
     scoring[['GAME_ID', 'TEAM_ID']] = scoring[['GAME_ID', 'TEAM_ID']].astype(str)
     tracking[['GAME_ID', 'TEAM_ID']] = tracking[['GAME_ID', 'TEAM_ID']].astype(str)
 
-    df = pd.merge(basic, adv, how='left', on=['GAME_ID', 'TEAM_ID'], suffixes=['', '_y'])
-    df = pd.merge(df, scoring, how='left', on=['GAME_ID', 'TEAM_ID'], suffixes=['', '_y'])
-    df = pd.merge(df, tracking, how='left', on=['GAME_ID', 'TEAM_ID'], suffixes=['', '_y'])
+    df = pd.merge(basic, adv, how='left', on=[
+                    'GAME_ID', 'TEAM_ID'], suffixes=['', '_y'])
+    df = pd.merge(df, scoring, how='left', on=[
+                  'GAME_ID', 'TEAM_ID'], suffixes=['', '_y'])
+    
+    df = pd.merge(df, tracking, how='left', on=['GAME_ID', 'TEAM_ID'],
+                  suffixes=['', '_y'])
     
 
     df = df.drop(columns=['TEAM_NAME_y', 'TEAM_CITY',
@@ -179,12 +190,12 @@ def clean_moneyline_df(df):
         highest_home_ml = pd.DataFrame(
             highest_home_ml, columns=['HIGHEST_HOME_ML'])
 
-    moneylines = pd.concat([df.iloc[:, :4], highest_home_ml, highest_away_ml], axis=1)
+    moneylines = pd.concat(
+        [df.iloc[:, :4], highest_home_ml, highest_away_ml], axis=1)
     
     moneylines['GM_DATE'] = pd.to_datetime(moneylines['GM_DATE'])
 
     return moneylines
-
 
 def clean_spreads_df(df):
     abbr_mapping = {'Boston': 'BOS', 'Portland': 'POR',
@@ -358,7 +369,7 @@ def build_team_avg_stats_df(df: pd.DataFrame, span = 10) -> pd.DataFrame:
     avg_stats = avg_stats.drop(columns='RECORD')
 
     avg_stats = avg_stats.sort_values(['TEAM_ABBREVIATION', 'GAME_DATE'])
-    # avg_stats.iloc[:, 14:] = avg_stats.iloc[:, 14:].shift(1).where(avg_stats['TEAM_ABBREVIATION'].eq(avg_stats['TEAM_ABBREVIATION'].shift()))
+    avg_stats.iloc[:, 14:] = avg_stats.iloc[:, 14:].shift(1).where(avg_stats['TEAM_ABBREVIATION'].eq(avg_stats['TEAM_ABBREVIATION'].shift()))
 
     avg_stats = avg_stats.add_suffix('_L{}'.format(span))
     
@@ -435,57 +446,141 @@ def add_percentage_features(df, span):
     return df
 
 
-def add_rest_days_for_model(df):
-    df['REST'] = np.nan
-    for team in df['TEAM_ABBREVIATION'].unique():
-        team_df = df.loc[df['TEAM_ABBREVIATION'] == team].sort_values('GAME_DATE')
-        idx = team_df.index
-        team_df['REST'] = (team_df['GAME_DATE'].shift(-1) - team_df['GAME_DATE']) / np.timedelta64(1, 'D')
-        team_df.at[max(idx), 'REST'] = (pd.to_datetime(date.today()) - team_df.at[max(idx), 'GAME_DATE']) / np.timedelta64(1, 'D')      
+def add_rest_days_adv(df):
+    
+    df['GAME_DATE'] = pd.to_datetime(df['GAME_DATE'])
+    df['prev_game'] = df.groupby(['SEASON', 'TEAM_ABBREVIATION'])['GAME_DATE'].shift(1)
 
-
-        df.loc[idx, 'REST'] = team_df['REST']
+    df['REST'] = (df['GAME_DATE'] - df['prev_game']) / np.timedelta64(1, 'D')
+            
     df.loc[df['REST'] >= 7, 'REST'] = 7
-        
+    
+    df['3daysago'] = df['GAME_DATE'] - timedelta(days=3)
+    df['2daysago'] = df['GAME_DATE'] - timedelta(days=2)
+    df['1daysago'] = df['GAME_DATE'] - timedelta(days=1)
+
+    df = pd.merge(df, df[['TEAM_ABBREVIATION', 'GAME_DATE']], 
+                    how='left',
+                    left_on = ['TEAM_ABBREVIATION', '1daysago'],
+                    right_on = ['TEAM_ABBREVIATION', 'GAME_DATE'],
+                    suffixes=['', '_1'])
+
+    df = pd.merge(df, df[['TEAM_ABBREVIATION', 'GAME_DATE']], 
+                    how='left',
+                    left_on = ['TEAM_ABBREVIATION', '2daysago'],
+                    right_on = ['TEAM_ABBREVIATION', 'GAME_DATE'],
+                    suffixes=['', '_2'])
+
+    df = pd.merge(df, df[['TEAM_ABBREVIATION', 'GAME_DATE']], 
+                    how='left',
+                    left_on = ['TEAM_ABBREVIATION', '3daysago'],
+                    right_on = ['TEAM_ABBREVIATION', 'GAME_DATE'],
+                    suffixes=['', '_3'])
+
+    df[['GAME_DATE_1', 'GAME_DATE_2', 'GAME_DATE_3']] = df[['GAME_DATE_1', 'GAME_DATE_2', 'GAME_DATE_3']].notnull().astype(int)
+
+    df['Threein4B2B'] = ((df['GAME_DATE_1'] == 1) & (df['GAME_DATE_2'] == 0) & (df['GAME_DATE_3'] == 1)).astype(int)
+    df['Threein4'] = ((df['GAME_DATE_1'] == 0) & (df['GAME_DATE_2'] == 1) & (df['GAME_DATE_3'] == 1)).astype(int)
+    
+    df = df.drop(columns=['prev_game', '3daysago', '2daysago', '1daysago', 'GAME_DATE_1', 'GAME_DATE_2', 'GAME_DATE_3'])
+    
     return df
+
+def make_matchups_2(df):
+    df = df.copy()
+    
+    home_teams = df.loc[df['HOME_GAME'] == 1]
+    home_teams = home_teams.add_prefix('HOME_')
+
+    away_teams = df.loc[df['HOME_GAME'] == 0]
+    away_teams = away_teams.add_prefix('AWAY_')
+
+
+    away_teams = away_teams.drop(columns=['AWAY_SEASON', 'AWAY_TEAM_ABBREVIATION', 'AWAY_GAME_DATE',
+                            'AWAY_MATCHUP', 'AWAY_HOME_GAME', 'AWAY_POINT_DIFF', 'AWAY_WL',
+                            'AWAY_ATS_DIFF', 'AWAY_SPREAD', 'AWAY_TEAM_COVERED'])
+
+    full_matchup_ewa = pd.merge(home_teams, away_teams, how = 'inner',
+                                left_on = 'HOME_GAME_ID', right_on = 'AWAY_GAME_ID') 
+    
+    full_matchup_ewa = full_matchup_ewa.rename(columns = {'HOME_SEASON':'SEASON',
+                                                        'HOME_GAME_DATE':'GAME_DATE',
+                                                        'HOME_GAME_ID':'GAME_ID',
+                                                        'HOME_MATCHUP':'MATCHUP'})
+    
+    full_matchup_ewa = full_matchup_ewa.drop(columns=['AWAY_GAME_ID'])
+    
+    return full_matchup_ewa
 
 
 def season_to_string(x):
     return str(x) + '-' + str(x+1)[-2:]
 
 
-def load_and_process_data(start_season, end_season):
-    start_season = season_to_string(start_season)
-    end_season = season_to_string(end_season)
-
-    db_filepath = Path.home().joinpath('NBA_model_v1', 'data', 'nba.db')
-
-    conn = sqlite3.connect(db_filepath)
+def generate_features_for_model(conn, start_season, end_season):
     
     print("Loading raw team boxscore data from sql database...")
-    
+
     df = load_team_data(conn, start_season, end_season)
     print("Loading betting data from sql database...")
     spreads, moneylines = load_betting_data(conn)
-    
+
     print("Cleaning Data...")
+
     df = clean_team_data(df)
     df = prep_for_aggregation(df)
 
     clean_mls = clean_moneyline_df(df = moneylines)
     clean_spreads = clean_spreads_df(df = spreads)
-    
+
+
     print("Merging Boxscore and Betting Data...")
-    merged_df = merge_betting_and_boxscore_data(
-        clean_spreads, clean_mls, clean_boxscores = df)
-    
-    
-    stats_per_100 = normalize_per_100_poss(merged_df)
+    merged_df = merge_betting_and_boxscore_data(clean_spreads, clean_mls, clean_boxscores = df)
+
+    # print("Getting Draftking Lines...") 
+    # dk_lines_df = get_draftking_lines(date=date.today())
+    # dk_lines_clean = clean_draftking_lines(dk_lines_df)
+
+    dk_lines_clean = pd.read_csv(Path.home().joinpath('NBA_model_v1', 'src', 'models', 'dk_lines_clean_20221026.csv'))
+
+    team_abbreviation = []
+    game_id = []
+    matchup = []
+    home_game = []
+
+    for i, row in dk_lines_clean.iterrows():
+        home_team = row['home_team']
+        away_team = row['away_team']
+        
+        team_abbreviation.append(home_team)
+        home_game.append(1)
+        game_id.append(i)
+        matchup.append(home_team + ' vs. ' + away_team)
+        
+        team_abbreviation.append(away_team)
+        home_game.append(0)
+        game_id.append(i)
+        matchup.append(away_team + ' @ ' + home_team)
+        
+
+    todays_matchups = pd.DataFrame({'TEAM_ABBREVIATION':team_abbreviation,
+                                    'MATCHUP':matchup,
+                                    'GAME_ID':game_id,
+                                    'HOME_GAME':home_game})
+
+    todays_matchups['SEASON'] = '2022-23'
+    todays_matchups['GAME_DATE'] = date.today()
+
+    merged_df_with_todays_games = pd.concat([merged_df, todays_matchups])
+
+    merged_df_with_todays_games
+
+    stats_per_100 = normalize_per_100_poss(merged_df_with_todays_games)
+
+    matchups = create_matchups(stats_per_100)
 
     print("Aggregating over last 5, 10, and 20 game windows")
-    
-    matchups = create_matchups(stats_per_100)
-    
+        
     team_stats_ewa_5 = build_team_avg_stats_df(matchups, span=5)
     team_stats_ewa_5 = add_percentage_features(team_stats_ewa_5, span=5)
 
@@ -503,33 +598,38 @@ def load_and_process_data(start_season, end_season):
                         'POINT_DIFF', 'WL'])
 
     df_full = pd.merge(temp, team_stats_ewa_20, how='inner', 
-                       on=['SEASON', 'TEAM_ABBREVIATION', 'GAME_DATE',
+                        on=['SEASON', 'TEAM_ABBREVIATION', 'GAME_DATE',
                             'GAME_ID', 'MATCHUP', 'HOME_GAME', 'TEAM_SCORE',
                             'ML', 'SPREAD', 'ATS_DIFF', 'TEAM_COVERED', 
                             'POINT_DIFF', 'WL'])
 
     df_full = df_full.sort_values(['GAME_DATE', 'GAME_ID', 'HOME_GAME'])
-    
-    
-    columns_to_drop = ['PTS_L5', 'PTS_L10', 'PTS_L20',
-                        'PLUS_MINUS_L5', 'PLUS_MINUS_L10', 'PLUS_MINUS_L20',
-                        'NET_RATING_L5', 'NET_RATING_L10', 'NET_RATING_L20',
-                        'POSS_L5', 'POSS_L10', 'POSS_L20',
-                        'REB_L5', 'REB_L10', 'REB_L20',
-                        'REB_opp_L5', 'REB_opp_L10', 'REB_opp_L20',
-                        'PTS_opp_L5', 'PTS_opp_L10', 'PTS_opp_L20',
-                        'PLUS_MINUS_opp_L5', 'PLUS_MINUS_opp_L10', 'PLUS_MINUS_opp_L20',
-                        'NET_RATING_opp_L5', 'NET_RATING_opp_L10', 'NET_RATING_opp_L20',
-                        'POSS_opp_L5', 'POSS_opp_L10', 'POSS_opp_L20']
-    
-    df_full = df_full.drop(columns = columns_to_drop)
-    
+
+
     print("adding rest days")
-    df_full = add_rest_days_for_model(df_full)
+    df_full = add_rest_days_adv(df_full)
+
+    print("creating matchups between Home and Away team aggregated stats")
+    df_full = make_matchups_2(df_full)
+
     
-    return df_full
+    df_full = df_full.loc[df_full['GAME_DATE'] == pd.to_datetime(date.today())]
+    
+    path_to_db = Path.home().joinpath('NBA_model_v1', 'data', 'nba.db')
+    X, y, df = get_data_from_db_all(target = 'HOME_WL', db_filepath = path_to_db, table = 'team_stats_ewa_matchup_prod')
+    
+    features = df_full[X.columns]
+    
+    matchup_info = df_full[['SEASON', 'HOME_TEAM_ABBREVIATION', 'GAME_DATE', 'MATCHUP']]
+    
+    return matchup_info, features
     
 
 if __name__ == '__main__':
-    load_and_process_data(2013, 2022)
     
+    start_season = 2013
+    end_season = 2022
+    path_to_db = Path.home().joinpath('NBA_model_v1', 'data', 'nba.db')
+    conn = sqlite3.connect(path_to_db)
+    
+    generate_features_for_model(conn, start_season, end_season)
