@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -538,8 +538,10 @@ def generate_features_for_model(conn, start_season, end_season):
     merged_df = merge_betting_and_boxscore_data(clean_spreads, clean_mls, clean_boxscores = df)
 
     # print("Getting Draftking Lines...") 
-    dk_lines_df = get_draftking_lines(date=date.today())
-    dk_lines_clean = clean_draftking_lines(dk_lines_df)
+    # dk_lines_df = get_draftking_lines(date=date.today())
+    # dk_lines_clean = clean_draftking_lines(dk_lines_df)
+
+    dk_lines_clean = pd.read_csv(Path.home().joinpath('NBA_model_v1', 'src', 'models', 'dk_lines_clean_20221026.csv'))
 
     team_abbreviation = []
     game_id = []

@@ -11,14 +11,22 @@ path_to_db = Path.home().joinpath('NBA_Model_v1', 'data', 'nba.db')
 season = '2022-23'
 
 
-
 preds = pd.read_csv(path_to_results)
 preds = preds.drop_duplicates(subset=['home_team', 'away_team', 'game_date'], keep='last')
 
 connection = sqlite3.connect(path_to_db)
-scores = pd.read_sql(f"""SELECT SEASON, GAME_DATE, HOME_TEAM_ABBREVIATION, MATCHUP, HOME_TEAM_SCORE, AWAY_TEAM_SCORE 
-                    FROM team_stats_ewa_matchup_prod
-                    WHERE SEASON = '{season}'""", con = connection)
+scores = pd.read_sql(f"""SELECT a.SEASON
+                        ,a.GAME_DATE
+                        ,a.TEAM_ABBREVIATION AS HOME_TEAM_ABBREVIATION
+                        ,b.TEAM_ABBREVIATION AS AWAY_TEAM_ABBREVIATION
+                        ,a.PTS AS HOME_TEAM_SCORE
+                        ,b.PTS AS AWAY_TEAM_SCORE 
+                    FROM team_basic_boxscores a
+                    JOIN team_basic_boxscores b
+                    ON a.GAME_ID = b.GAME_ID
+                    WHERE a.MATCHUP like '%vs%'
+                    and a.TEAM_ABBREVIATION != b.TEAM_ABBREVIATION
+                    and a.SEASON = '{season}'""", con = connection)
 
 scores['GAME_DATE'] = pd.to_datetime(scores['GAME_DATE']).astype(str)
 
@@ -49,9 +57,9 @@ merged.loc[merged['HOME_SCORE_DIFF'].isnull(), ['HOME_WIN', 'HOME_COVER', 'SGD_A
                                                 'SGD_LOGLOSS_ML_BET_RESULT', 'LGB_ML_BET_RESULT']] = np.nan
 
 
-merged = merged.drop(columns = ['GAME_DATE', 'SEASON', 'HOME_TEAM_ABBREVIATION', 'MATCHUP'])
+merged = merged.drop(columns = ['GAME_DATE', 'SEASON', 'HOME_TEAM_ABBREVIATION'])
 
-########
+# ########
 
 
 scope = ['https://spreadsheets.google.com/feeds',
