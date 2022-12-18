@@ -537,11 +537,9 @@ def generate_features_for_model(conn, start_season, end_season):
     print("Merging Boxscore and Betting Data...")
     merged_df = merge_betting_and_boxscore_data(clean_spreads, clean_mls, clean_boxscores = df)
 
-    # print("Getting Draftking Lines...") 
-    # dk_lines_df = get_draftking_lines(date=date.today())
-    # dk_lines_clean = clean_draftking_lines(dk_lines_df)
-
-    dk_lines_clean = pd.read_csv(Path.home().joinpath('NBA_model_v1', 'src', 'models', 'dk_lines_clean_20221026.csv'))
+    print("Getting Draftking Lines...") 
+    dk_lines_df = get_draftking_lines(date=date.today())
+    dk_lines_clean = clean_draftking_lines(dk_lines_df)
 
     team_abbreviation = []
     game_id = []
@@ -632,4 +630,8 @@ if __name__ == '__main__':
     path_to_db = Path.home().joinpath('NBA_model_v1', 'data', 'nba.db')
     conn = sqlite3.connect(path_to_db)
     
-    generate_features_for_model(conn, start_season, end_season)
+    matchup_info, features = generate_features_for_model(conn, start_season, end_season)
+    
+    df = pd.concat([matchup_info, features], axis=1)
+    
+    df.to_csv('team_aggregated_stats_used_for_model.csv', mode='a', index=False, header=False)

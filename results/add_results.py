@@ -1,6 +1,8 @@
+import numpy as np
 import pandas as pd
 import sqlite3
 from pathlib import Path
+
 
 path_to_db = Path.home().joinpath('NBA_Model_v1', 'data', 'nba.db')
 
@@ -30,9 +32,15 @@ merged['SCORE_DIFF'] = merged['HOME_TEAM_SCORE'] - merged['AWAY_TEAM_SCORE']
 merged['HOME_WIN'] = (merged['SCORE_DIFF']>0).astype(int)
 
 merged['HOME_ATS_COVER'] = ((merged['SCORE_DIFF'] + merged['home_spread']) > 0).astype(int)
+merged.loc[merged['SCORE_DIFF'] + merged['home_spread'] == 0, 'HOME_ATS_COVER'] = np.nan
+
+
 
 merged['SGD_ATS_RESULT'] = (merged['HOME_ATS_COVER'] == merged['SGD_ATS_BET_HOME']).astype(int)
 merged['LGB_ATS_RESULT'] = (merged['HOME_ATS_COVER'] == merged['LGB_ATS_BET_HOME']).astype(int)
+
+merged.loc[merged['HOME_ATS_COVER'].isnull(), 'SGD_ATS_RESULT'] = np.nan
+merged.loc[merged['HOME_ATS_COVER'].isnull(), 'LGB_ATS_RESULT'] = np.nan
 
 merged['SGD_HINGE_ML_RESULT'] = (merged['home_win_prob_sgd_hinge'] == merged['HOME_WIN']).astype(int)
 merged['SGD_LOGLOSS_ML_RESULT'] = (merged['home_win_prob_sgd_logloss'].round() == merged['HOME_WIN']).astype(int)
