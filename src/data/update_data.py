@@ -116,7 +116,8 @@ def update_team_scoring_boxscores(conn, season, dates=[]):
                 INNER JOIN team_scoring_boxscores 
                 ON team_basic_boxscores.GAME_ID = team_scoring_boxscores.GAME_ID
                 AND team_basic_boxscores.TEAM_ID = team_scoring_boxscores.TEAM_ID
-                WHERE SEASON = "{season_str}" ''', conn)
+                WHERE SEASON = "{season_str}"
+                AND PCT_UAST_FGM IS NOT NULL''', conn)
 
     game_ids_in_db = game_ids_in_db['GAME_ID'].tolist()
 

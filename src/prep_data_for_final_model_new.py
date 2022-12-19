@@ -89,6 +89,7 @@ def prep_for_aggregation(df):
     percentages. 
     2) Converts shooting percentage stats into raw values"""
     df = df.copy()
+    df = df.dropna()
 
     df = df.drop(columns=['FT_PCT', 'FG_PCT', 'FG3_PCT', 'DREB_PCT',
                           'OREB_PCT', 'REB_PCT', 'AST_PCT', 'AST_TOV',
