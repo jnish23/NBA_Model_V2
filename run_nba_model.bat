@@ -1,0 +1,1 @@
+"C:\Users\Jordan Nishimura\NBA_Model_v1\nba-model-venv\Scripts\python.exe" "C:\Users\Jordan Nishimura\NBA_Model_v1\src\models\make_predictions_v2.py" 

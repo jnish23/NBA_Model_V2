@@ -60,8 +60,7 @@ def add_elo_ratings(df):
     """This function will generate elo_ratings in the elo_df"""
     
     # Initialize the following columns
-    df.sort_values(['GAME_DATE'], inplace=True)
-    df.reset_index(drop=True, inplace=True)
+    df = df.sort_values(['GAME_DATE']).reset_index(drop=True)
     df['team_elo_pred'] = np.nan
 
     df['team_rating_i'] = np.nan

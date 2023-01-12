@@ -61,7 +61,9 @@ def update_team_advanced_boxscores(conn, season, dates=[]):
                 INNER JOIN team_advanced_boxscores 
                 ON team_basic_boxscores.GAME_ID = team_advanced_boxscores.GAME_ID
                 AND team_basic_boxscores.TEAM_ID = team_advanced_boxscores.TEAM_ID
-                WHERE SEASON = "{}" '''.format(season_str), conn)
+                WHERE SEASON = "{}" 
+                AND E_TM_TOV_PCT IS NOT NULL
+                '''.format(season_str), conn)
 
     game_ids_in_db = game_ids_in_db['GAME_ID'].tolist()
     
@@ -176,7 +178,8 @@ def update_team_tracking_boxscores(conn, season, dates=[]):
                 INNER JOIN team_tracking_boxscores 
                 ON team_basic_boxscores.GAME_ID = team_tracking_boxscores.GAME_ID
                 AND team_basic_boxscores.TEAM_ID = team_tracking_boxscores.TEAM_ID
-                WHERE SEASON = "{season_str}" ''', conn)
+                WHERE SEASON = "{season_str}"
+                AND DIST != "0.0"''', conn)
 
     game_ids_in_db = game_ids_in_db['GAME_ID'].tolist()
 
