@@ -76,7 +76,7 @@ def send_to_google_sheets(df):
     scope = ['https://spreadsheets.google.com/feeds',
             'https://www.googleapis.com/auth/drive']
 
-    path_to_key = Path().home().joinpath('NBA_model_v1', 'results', 'nba-model-314520-a7e4b87dbdb6.json')
+    path_to_key = Path().home().joinpath('NBA_model_v1', 'src', 'nba-model-314520-a7e4b87dbdb6.json')
 
     credentials = ServiceAccountCredentials.from_json_keyfile_name(
         path_to_key, scope)
@@ -84,9 +84,11 @@ def send_to_google_sheets(df):
     gc = gspread.authorize(credentials)
 
 
-    spreadsheet_key = '15NYLE7EIyZtT4MWpDAInAcnPo5cw4wPj5SsAks512BE'
+    spreadsheet_key = '1rA6wzNbW2CJwhJ9HI-CI3R_WLw3eNJzcEKBkH9wJpJ4'
 
     wks_name = 'Model_Predictions_2022'
+    gc = gspread.authorize(credentials)
+   
 
     d2g.upload(df, spreadsheet_key, wks_name, credentials=credentials,
             row_names=True)
