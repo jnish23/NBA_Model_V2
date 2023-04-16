@@ -29,8 +29,9 @@ def update_team_basic_boxscores(conn, season):
     """
     table_name = 'team_basic_boxscores'
     dfs = []
+    season_str = season_string(season)
     for season_type in ['Regular Season', 'Playin', 'Playoffs']:
-        team_gamelogs = leaguegamelog.LeagueGameLog(season=season, season_type_all_star=season_type).get_data_frames()[0]
+        team_gamelogs = leaguegamelog.LeagueGameLog(season=season_str, season_type_all_star=season_type).get_data_frames()[0]
         dfs.append(team_gamelogs)
 
     team_gamelogs_full = pd.concat(dfs)    
