@@ -29,7 +29,7 @@ def update_team_basic_boxscores(conn, season):
     """
     table_name = 'team_basic_boxscores'
     dfs = []
-    for season_type in ['Regular Season', 'Playoffs']:
+    for season_type in ['Regular Season', 'Playin', 'Playoffs']:
         team_gamelogs = leaguegamelog.LeagueGameLog(season=season, season_type_all_star=season_type).get_data_frames()[0]
         dfs.append(team_gamelogs)
 
