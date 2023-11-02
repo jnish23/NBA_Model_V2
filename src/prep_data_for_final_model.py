@@ -531,5 +531,5 @@ def load_and_process_data(start_season, end_season):
     
 
 if __name__ == '__main__':
-    load_and_process_data(2013, 2022)
+    load_and_process_data(2013, 2023)
     

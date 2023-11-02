@@ -588,7 +588,7 @@ def etl_pipeline(start_season, end_season, table_name):
 
 if __name__ == '__main__':
     start_season = 2013
-    end_season = 2022
+    end_season = 2023
     processed_data_table_name = 'team_stats_ewa_matchup_prod'
     
     etl_pipeline(start_season = start_season, end_season = end_season, table_name = processed_data_table_name)

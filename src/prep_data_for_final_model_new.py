@@ -455,6 +455,7 @@ def add_rest_days_adv(df):
     df['REST'] = (df['GAME_DATE'] - df['prev_game']) / np.timedelta64(1, 'D')
             
     df.loc[df['REST'] >= 7, 'REST'] = 7
+    df['REST'] = df['REST'].fillna(7)
     
     df['3daysago'] = df['GAME_DATE'] - timedelta(days=3)
     df['2daysago'] = df['GAME_DATE'] - timedelta(days=2)
@@ -567,7 +568,7 @@ def generate_features_for_model(conn, start_season, end_season):
                                     'GAME_ID':game_id,
                                     'HOME_GAME':home_game})
 
-    todays_matchups['SEASON'] = '2022-23'
+    todays_matchups['SEASON'] = '2023-24'
     todays_matchups['GAME_DATE'] = date.today()
 
     merged_df_with_todays_games = pd.concat([merged_df, todays_matchups])
@@ -618,8 +619,9 @@ def generate_features_for_model(conn, start_season, end_season):
     X, y, df = get_data_from_db_all(target = 'HOME_WL', db_filepath = path_to_db, table = 'team_stats_ewa_matchup_prod')
     
     features = df_full[X.columns]
-    
+    features[['AWAY_REST', 'HOME_REST']] = features[['AWAY_REST', 'HOME_REST']].fillna(5)
     matchup_info = df_full[['SEASON', 'HOME_TEAM_ABBREVIATION', 'GAME_DATE', 'MATCHUP']]
+    
     
     return matchup_info, features
     
@@ -627,7 +629,7 @@ def generate_features_for_model(conn, start_season, end_season):
 if __name__ == '__main__':
     
     start_season = 2013
-    end_season = 2022
+    end_season = 2023
     path_to_db = Path.home().joinpath('NBA_model_v1', 'data', 'nba.db')
     conn = sqlite3.connect(path_to_db)
     
