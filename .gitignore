@@ -1,4 +1,5 @@
 models/
 data/nba.db
+nba.db
 nba-model-venv
 chromedriver.exe

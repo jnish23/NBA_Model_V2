@@ -30,7 +30,7 @@ def update_team_basic_boxscores(conn, season):
     table_name = 'team_basic_boxscores'
     dfs = []
     season_str = season_string(season)
-    for season_type in ['Regular Season', 'Playin', 'Playoffs']:
+    for season_type in ['Regular Season', 'PlayIn', 'Playoffs']:
         team_gamelogs = leaguegamelog.LeagueGameLog(season=season_str, season_type_all_star=season_type).get_data_frames()[0]
         dfs.append(team_gamelogs)
 
@@ -78,7 +78,7 @@ def update_team_advanced_boxscores(conn, season, dates=[]):
     else:        
         # get up to date GAME_IDs
         to_date_game_ids = []
-        for season_type in ['Regular Season', 'Playoffs']:
+        for season_type in ['Regular Season', 'PlayIn', 'Playoffs']:
             to_date_gamelogs = leaguegamelog.LeagueGameLog(season=season_str, season_type_all_star=season_type).get_data_frames()[0]
             to_date_game_ids.extend(to_date_gamelogs['GAME_ID'].unique())
 
@@ -134,7 +134,7 @@ def update_team_scoring_boxscores(conn, season, dates=[]):
     else:
         # get up to date GAME_IDs
         to_date_game_ids = []
-        for season_type in ['Regular Season', 'Playoffs']:
+        for season_type in ['Regular Season', 'PlayIn', 'Playoffs']:
             to_date_gamelogs = leaguegamelog.LeagueGameLog(
                 season=season_str, season_type_all_star=season_type).get_data_frames()[0]
             to_date_game_ids.extend(to_date_gamelogs['GAME_ID'].unique())
@@ -194,7 +194,7 @@ def update_team_tracking_boxscores(conn, season, dates=[]):
     else:
         # get up to date GAME_IDs
         to_date_game_ids = []
-        for season_type in ['Regular Season', 'Playoffs']:
+        for season_type in ['Regular Season', 'PlayIn', 'Playoffs']:
             to_date_gamelogs = leaguegamelog.LeagueGameLog(
                 season=season_str, season_type_all_star=season_type).get_data_frames()[0]
             to_date_game_ids.extend(to_date_gamelogs['GAME_ID'].unique())
@@ -303,8 +303,7 @@ def update_moneylines(conn, season, custom_dates=[]):
         home_mls = []
 
         for event in single_row_events:
-            
-            seasons.append('2022-23')
+            seasons.append('2023-24')
 
             away_team = event.find_elements(By.CLASS_NAME, 'GameRows_participantBox__0WCRz')[0].text
             home_team = event.find_elements(By.CLASS_NAME, 'GameRows_participantBox__0WCRz')[1].text
@@ -436,7 +435,7 @@ def update_spreads(conn, season, custom_dates=[]):
 
         for event in single_row_events:
             
-            seasons.append('2022-23')
+            seasons.append('2023-24')
 
             away_team = event.find_elements(By.CLASS_NAME, 'GameRows_participantBox__0WCRz')[0].text
             home_team = event.find_elements(By.CLASS_NAME, 'GameRows_participantBox__0WCRz')[1].text
@@ -499,7 +498,7 @@ def season_string(season):
 def get_season_games(season):
     season_str = season_string(season)
     gamelogs = []
-    for season_type in ['Regular Season', 'Playoffs']:
+    for season_type in ['Regular Season', 'PlayIn', 'Playoffs']:
         games = leaguegamelog.LeagueGameLog(season=season_str, season_type_all_star=season_type).get_data_frames()[0]
         gamelogs.append(games)
         
@@ -518,7 +517,7 @@ def update_all_data():
     """Combines all the update functions above into one function that updates all my data"""
     
     db_path = Path.home() / 'NBA_Model_v1' / 'data' / 'nba.db'
-    season = 2022
+    season = 2023
     connection = sqlite3.connect(db_path)
 
     print("updating basic team boxscores")

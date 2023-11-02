@@ -10,9 +10,9 @@ import numpy as np
 
 def create_results_df():
     
-    path_to_results = Path().home().joinpath('NBA_Model_v1', 'results', 'betting_predictions_2022.csv')
+    path_to_results = Path().home().joinpath('NBA_Model_v1', 'results', 'betting_predictions_2023.csv')
     path_to_db = Path.home().joinpath('NBA_Model_v1', 'data', 'nba.db')
-    season = '2022-23'
+    season = '2023-24'
         
     preds = pd.read_csv(path_to_results)
     preds = preds.drop_duplicates(subset=['home_team', 'away_team', 'game_date'], keep='last')
@@ -72,6 +72,7 @@ def create_results_df():
 # ########
 
 def send_to_google_sheets(df):
+    season_year = 2023
         
     scope = ['https://spreadsheets.google.com/feeds',
             'https://www.googleapis.com/auth/drive']
@@ -86,7 +87,7 @@ def send_to_google_sheets(df):
 
     spreadsheet_key = '1rA6wzNbW2CJwhJ9HI-CI3R_WLw3eNJzcEKBkH9wJpJ4'
 
-    wks_name = 'Model_Predictions_2022'
+    wks_name = f'Model_Predictions_{season_year}'
     gc = gspread.authorize(credentials)
    
 
