@@ -9,8 +9,8 @@ import numpy as np
 
 
 def create_results_df():
-    
-    path_to_results = Path().home().joinpath('NBA_Model_v1', 'results', 'betting_predictions_2023.csv')
+    s = 2023
+    path_to_results = Path().home().joinpath('NBA_Model_v1', 'results', f'betting_predictions_{s}.csv')
     path_to_db = Path.home().joinpath('NBA_Model_v1', 'data', 'nba.db')
     season = '2023-24'
         
@@ -44,6 +44,7 @@ def create_results_df():
     merged['LGB_ATS_BET_HOME'] = (merged['LGB_ATS_DIFF']>0).astype(int)
 
     merged['HOME_SCORE_DIFF'] = merged['HOME_TEAM_SCORE'] - merged['AWAY_TEAM_SCORE']
+
     merged['HOME_WIN'] = (merged['HOME_SCORE_DIFF']>0).astype(int)
 
     merged['HOME_COVER'] = ((merged['HOME_SCORE_DIFF'] + merged['home_spread']) > 0).astype(int)
@@ -64,6 +65,23 @@ def create_results_df():
                                                     'LGB_ATS_BET_RESULT', 'SGD_HINGE_ML_BET_RESULT',
                                                     'SGD_LOGLOSS_ML_BET_RESULT', 'LGB_ML_BET_RESULT']] = np.nan
 
+    merged['SGD_TOTAL_PRED'] = merged['sgd_home_score_pred'] + merged['sgd_away_score_pred']
+    merged['LGB_TOTAL_PRED'] = merged['lgb_home_score_pred'] + merged['lgb_away_score_pred']
+
+    merged['SGD_BET_OVER'] = (merged['SGD_TOTAL_PRED'] > merged['OU']).astype(int)
+    merged['LGB_BET_OVER'] = (merged['LGB_TOTAL_PRED'] > merged['OU']).astype(int)
+         
+    merged['POINT_TOTAL'] = merged['HOME_TEAM_SCORE'] + merged['AWAY_TEAM_SCORE']
+    merged['OVER_RESULT'] = (merged['POINT_TOTAL'] > merged['OU']).astype(int)
+    merged.loc[merged['POINT_TOTAL'].isnull(), 'OVER_RESULT'] = np.nan
+    
+    merged.loc[(merged['POINT_TOTAL'] == merged['OU']), 'OVER_RESULT'] = np.nan
+
+    merged['SGD_BET_OVER_RESULT'] = (merged['SGD_BET_OVER'] == merged['OVER_RESULT']).astype(int)
+    merged['LGB_BET_OVER_RESULT'] = (merged['LGB_BET_OVER'] == merged['OVER_RESULT']).astype(int)
+    
+    merged.loc[(merged['POINT_TOTAL'].isnull()), ['OVER_RESULT', 'SGD_BET_OVER_RESULT', 'LGB_BET_OVER_RESULT']] = np.nan
+    
 
     merged = merged.drop(columns = ['GAME_DATE', 'SEASON', 'HOME_TEAM_ABBREVIATION'])
     

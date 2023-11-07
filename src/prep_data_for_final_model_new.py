@@ -8,7 +8,7 @@ import sys
 
 sys.path.append('C:/Users/Jordan Nishimura/NBA_Model_v1')
 
-from src.models.model_preparation import get_draftking_lines, clean_draftking_lines
+from src.models.model_preparation import get_draftking_lines, clean_draftking_lines, get_odds_data
 from src.data.process_data_no_split import get_data_from_db_all
 
 def load_team_data(conn, start_season, end_season):
@@ -540,15 +540,15 @@ def generate_features_for_model(conn, start_season, end_season):
     merged_df = merge_betting_and_boxscore_data(clean_spreads, clean_mls, clean_boxscores = df)
 
     print("Getting Draftking Lines...") 
-    dk_lines_df = get_draftking_lines(date=date.today())
-    dk_lines_clean = clean_draftking_lines(dk_lines_df)
+    
+    odds_df = get_odds_data(date=date.today(), sportsbook='fanduel')
 
     team_abbreviation = []
     game_id = []
     matchup = []
     home_game = []
 
-    for i, row in dk_lines_clean.iterrows():
+    for i, row in odds_df.iterrows():
         home_team = row['home_team']
         away_team = row['away_team']
         
@@ -636,5 +636,6 @@ if __name__ == '__main__':
     matchup_info, features = generate_features_for_model(conn, start_season, end_season)
     
     df = pd.concat([matchup_info, features], axis=1)
-    
-    df.to_csv('team_aggregated_stats_used_for_model.csv', mode='a', index=False, header=False)
+
+    print(df)    
+    # df.to_csv('team_aggregated_stats_used_for_model.csv', mode='a', index=False, header=False)
