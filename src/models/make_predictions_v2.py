@@ -62,9 +62,6 @@ def main():
     conn = sqlite3.connect(path_to_db)
     etl_pipeline(start_season = start_season, end_season = end_season, table_name = processed_data_table_name)
     
-    # print("preparing team statistics")
-    # df = prep_data_for_final_model.load_and_process_data(start_season=2013, end_season=2023)
-    
     today = date.today()
     print("Getting Odds Data...") 
     
