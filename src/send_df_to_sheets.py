@@ -33,9 +33,9 @@ def create_results_df():
 
     scores['GAME_DATE'] = pd.to_datetime(scores['GAME_DATE']).astype(str)
 
-    merged = pd.merge(preds, scores, how='left', 
-                    left_on = ['home_team', 'game_date'],
-                    right_on = ['HOME_TEAM_ABBREVIATION', 'GAME_DATE'])
+    merged = pd.merge(scores, preds, how='left', 
+                    left_on = ['HOME_TEAM_ABBREVIATION', 'GAME_DATE'],
+                    right_on = ['home_team', 'game_date'])
 
     merged['SGD_ATS_DIFF'] = merged['sgd_home_score_pred'] - merged['sgd_away_score_pred'] + merged['home_spread']
     merged['LGB_ATS_DIFF'] = merged['lgb_home_score_pred'] - merged['lgb_away_score_pred'] + merged['home_spread']
@@ -106,7 +106,6 @@ def send_to_google_sheets(df):
     spreadsheet_key = '1rA6wzNbW2CJwhJ9HI-CI3R_WLw3eNJzcEKBkH9wJpJ4'
 
     wks_name = f'Model_Predictions_{season_year}'
-    gc = gspread.authorize(credentials)
    
 
     d2g.upload(df, spreadsheet_key, wks_name, credentials=credentials,

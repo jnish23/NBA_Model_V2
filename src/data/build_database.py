@@ -1,27 +1,20 @@
 import pandas as pd
 from tqdm import tqdm
 import sqlite3
+from nba_api.stats.endpoints import leaguegamelog, boxscoreadvancedv2
+from time import sleep
+from IPython.display import clear_output
 
-def add_basic_boxscores_to_db(conn, start_season, end_season, if_exists='append'):
+def add_basic_boxscores_to_db(conn, start_season, end_season):
     """This function pulls basic team boxscores from the NBA_API package 
     and appends (or creates a new table if not exists) it to the table team_basic_boxscores in the sqlite db"""
     
     table_name = 'team_basic_boxscores'
-    
-    if if_exists == 'replace':
-        conn.execute('DROP TABLE IF EXISTS ' + table_name)
-        conn.execute('VACUUM')
         
-    conn.execute("""CREATE TABLE IF NOT EXISTS {} (SEASON TEXT, TEAM_ID INTEGER, TEAM_ABBREVIATION TEXT, 
-        TEAM_NAME TEXT, GAME_ID TEXT, GAME_DATE DATE, MATCHUP TEXT, WL TEXT, MIN INTEGER, FGM INTEGER, FGA INTEGER, 
-        FG_PCT FLOAT, FG3M INTEGER, FG3A  INTEGER, FG3_PCT FLOAT, FTM INTEGER, FTA INTEGER, FT_PCT FLOAT, OREB INTEGER,
-        DREB INTEGER, REB INTEGER, AST INTEGER, STL INTEGER, BLK INTEGER, TOV INTEGER, PF INTEGER, PTS INTEGER, 
-        PLUS_MINUS INTEGER)""".format(table_name))    
-    
     for season in range(start_season, end_season+1):
         season_str = season_string(season)
-
-        for season_type in ['Regular Season', 'Playoffs']:
+        season_boxscores = []
+        for season_type in ['Regular Season', 'PlayIn', 'Playoffs']:
             boxscores = leaguegamelog.LeagueGameLog(season=season_str, season_type_all_star=season_type).get_data_frames()[0]
             season_boxscores.append(boxscores)
             sleep(2)
@@ -34,13 +27,13 @@ def add_basic_boxscores_to_db(conn, start_season, end_season, if_exists='append'
         sleep(3)
         
     cur = conn.cursor()
-    cur.execute('DELETE FROM {} WHERE rowid NOT IN (SELECT max(rowid) FROM {} GROUP BY TEAM_ID, GAME_ID)'.format(table_name, table_name))
+    cur.execute(f'DELETE FROM {table_name} WHERE rowid NOT IN (SELECT max(rowid) FROM {table_name} GROUP BY TEAM_ID, GAME_ID)')
     conn.commit()
     
     return None
 
 
-def add_advanced_boxscores_to_db(conn, start_season, end_season, if_exists='append'):
+def add_advanced_boxscores_to_db(conn, start_season, end_season):
     """
     This function pulls advanced team boxscores from the NBA_API package 
     and appends (or creates a new table if not exists) it to the table team_advanced_boxscores in the sqlite db
@@ -52,28 +45,15 @@ def add_advanced_boxscores_to_db(conn, start_season, end_season, if_exists='appe
     table_name = 'team_advanced_boxscores'
     game_ids_not_added = []
     
-    if if_exists == 'replace':
-        conn.execute('DROP TABLE IF EXISTS ' + table_name)
-        conn.execute('VACUUM')
-    
-    conn.execute('''CREATE TABLE IF NOT EXISTS {} (GAME_ID TEXT, TEAM_ID INTEGER, TEAM_NAME TEXT, 
-        TEAM_ABBREVIATION TEXT, TEAM_CITY TEXT, MIN TEXT, E_OFF_RATING FLOAT, OFF_RATING FLOAT, E_DEF_RATING FLOAT, 
-        DEF_RATING FLOAT, E_NET_RATING FLOAT, NET_RATING FLOAT, AST_PCT FLOAT, AST_TOV FLOAT, 
-        AST_RATIO FLOAT, OREB_PCT FLOAT, DREB_PCT FLOAT, REB_PCT FLOAT, E_TM_TOV_PCT FLOAT, 
-        TM_TOV_PCT FLOAT, EFG_PCT FLOAT, TS_PCT FLOAT, USG_PCT FLOAT, E_USG_PCT FLOAT, E_PACE FLOAT, 
-        PACE FLOAT, PACE_PER40 FLOAT, POSS FLOAT, PIE FLOAT)'''.format(table_name))
-    
-    
     for season in range(start_season, end_season+1):
         season_str = season_string(season)
-        season_team_boxscores = []
 
-        for season_type in ['Regular Season', 'Playoffs']:
-            logs = leaguegamelog.LeagueGameLog(season=season, season_type_all_star=season_type).get_data_frames()[0]
+        for season_type in ['Regular Season', 'PlayIn', 'Playoffs']:
+            logs = leaguegamelog.LeagueGameLog(season=season_str, season_type_all_star=season_type).get_data_frames()[0]
             game_ids = logs['GAME_ID'].unique()
 
             for i in range(0, len(game_ids), 100):
-                print('games {} to {}'.format(i, i+100))
+                print(f'games {i} to {i+100}')
                 for game_id in tqdm(game_ids[i:i+100], desc='progress'):
                     try:
                         team_boxscores = boxscoreadvancedv2.BoxScoreAdvancedV2(game_id).get_data_frames()[1]                    
@@ -90,7 +70,7 @@ def add_advanced_boxscores_to_db(conn, start_season, end_season, if_exists='appe
     cur.execute('DELETE FROM {} WHERE rowid NOT IN (SELECT max(rowid) FROM {} GROUP BY TEAM_ID, GAME_ID)'.format(table_name, table_name))
     conn.commit()
     
-    return None
+    return game_ids_not_added
 
 
 def add_scoring_boxscores_to_db(conn, start_season, end_season, if_exists='append'):
@@ -381,3 +361,10 @@ def get_game_dates(season):
         dates.extend(games['GAME_DATE'].unique())
         sleep(1)
     return dates
+
+def build_database(season):
+    
+
+
+if __name__ == '__main__':
+    
