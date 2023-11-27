@@ -33,9 +33,17 @@ def create_results_df():
 
     scores['GAME_DATE'] = pd.to_datetime(scores['GAME_DATE']).astype(str)
 
-    merged = pd.merge(scores, preds, how='left', 
+    merged = pd.merge(scores, preds, how='outer', 
                     left_on = ['HOME_TEAM_ABBREVIATION', 'GAME_DATE'],
                     right_on = ['home_team', 'game_date'])
+    
+    merged = merged[['home_team', 'away_team', 'game_date', 'home_spread', 'home_moneylines',
+       'away_moneylines', 'OU', 'sgd_home_score_pred', 'sgd_away_score_pred',
+       'lgb_home_score_pred', 'lgb_away_score_pred', 'home_win_prob_sgd_hinge',
+       'home_win_prob_sgd_logloss', 'away_win_prob_sgd_logloss',
+       'home_win_prob_lgbc', 'away_win_prob_lgbc', 'SEASON', 'GAME_DATE',
+       'HOME_TEAM_ABBREVIATION', 'AWAY_TEAM_ABBREVIATION', 'HOME_TEAM_SCORE',
+       'AWAY_TEAM_SCORE']]
 
     merged['SGD_ATS_DIFF'] = merged['sgd_home_score_pred'] - merged['sgd_away_score_pred'] + merged['home_spread']
     merged['LGB_ATS_DIFF'] = merged['lgb_home_score_pred'] - merged['lgb_away_score_pred'] + merged['home_spread']
@@ -52,6 +60,7 @@ def create_results_df():
 
     merged['SGD_ATS_BET_RESULT'] = (merged['HOME_COVER'] == merged['SGD_ATS_BET_HOME']).astype(int)
     merged['LGB_ATS_BET_RESULT'] = (merged['HOME_COVER'] == merged['LGB_ATS_BET_HOME']).astype(int)
+    
 
     merged.loc[merged['HOME_COVER'].isnull(), 'SGD_ATS_BET_RESULT'] = np.nan
     merged.loc[merged['HOME_COVER'].isnull(), 'LGB_ATS_BET_RESULT'] = np.nan
@@ -82,6 +91,9 @@ def create_results_df():
     
     merged.loc[(merged['POINT_TOTAL'].isnull()), ['OVER_RESULT', 'SGD_BET_OVER_RESULT', 'LGB_BET_OVER_RESULT']] = np.nan
     
+    merged.loc[merged['sgd_home_score_pred'].isnull(), ['SGD_ATS_BET_HOME', 'SGD_ATS_BET_RESULT', 'SGD_BET_OVER', 'SGD_BET_OVER_RESULT']] = np.nan
+    merged.loc[merged['lgb_home_score_pred'].isnull(), ['LGB_ATS_BET_HOME', 'LGB_ATS_BET_RESULT', 'LGB_BET_OVER', 'LGB_BET_OVER_RESULT']] = np.nan
+
 
     merged = merged.drop(columns = ['GAME_DATE', 'SEASON', 'HOME_TEAM_ABBREVIATION'])
     
