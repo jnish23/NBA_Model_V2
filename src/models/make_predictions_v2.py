@@ -5,8 +5,6 @@ import optuna
 import os
 import pandas as pd
 from pathlib import Path
-import runpy
-import selenium
 import sys
 sys.path.append('C:/Users/Jordan Nishimura/NBA_Model_v1')
 
@@ -19,13 +17,11 @@ from src.models.Train_SGDClassifierHinge_WinPredictor import train_and_save_sgd_
 from src.models.Train_SGDClassifierLogLoss_WinPredictor import train_and_save_sgd_classifier_logloss
 from src.models.Train_SGDRegressor_ScorePredictor import train_and_save_sgd_regressor
 
-from src import prep_data_for_final_model
 from src import prep_data_for_final_model_new
 from src import send_df_to_sheets
 
 from src.etl import etl_pipeline
 from src.data.update_data import update_all_data
-from sklearn.multioutput import MultiOutputRegressor
 import joblib
 import sqlite3
 
@@ -65,9 +61,6 @@ def main():
     path_to_db = Path.home().joinpath('NBA_Model_v1', 'data', 'nba.db')
     conn = sqlite3.connect(path_to_db)
     etl_pipeline(start_season = start_season, end_season = end_season, table_name = processed_data_table_name)
-    
-    # print("preparing team statistics")
-    # df = prep_data_for_final_model.load_and_process_data(start_season=2013, end_season=2023)
     
     today = date.today()
     print("Getting Odds Data...") 
